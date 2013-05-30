@@ -10,7 +10,7 @@ For installation the use of Bower is recommended.
 ### Bower
 Call the following command on your command line: 
 
-```shell
+```sh
 bower install git@github.com:webcss/angular-indexedDB.git --save
 ```
 
