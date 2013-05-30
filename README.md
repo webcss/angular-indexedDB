@@ -14,6 +14,13 @@ Call the following command on your command line:
 bower install git@github.com:webcss/angular-indexedDB.git --save
 ```
 
+And add the following line to your html file, for example `index.html`:
+
+```html
+<script src="components/angular-indexedDB/src/indexeddb.js"></script>
+```
+
+
 ### Manual
 
 - Download file.
