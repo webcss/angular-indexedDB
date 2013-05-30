@@ -56,17 +56,19 @@ angular.module('myModuleName').controller('myControllerName', function($scope, $
         keyPath: KEY_PATH
     });
     
-    /**
-     * @type {ObjectStore}
-     */
-    var myObjectStore = $indexedDB.objectStore(OBJECT_STORE_NAME);
     
+  });
+  
+  /**
+   * @type {ObjectStore}
+   */
+  var myObjectStore = $indexedDB.objectStore(OBJECT_STORE_NAME);
+  
+  
+  myObjectStore.getAll().then(function onSuccess(objects) {
     
-    myObjectStore.getAll().then(function onSuccess(objects) {
-      
-      // Update scope
-      $scope.objects = objects;
-    });
+    // Update scope
+    $scope.objects = objects;
   });
 });
 ```
