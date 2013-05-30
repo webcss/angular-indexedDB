@@ -32,17 +32,26 @@ And add the following line to your html file, for example `index.html`:
 
 ## Usage
 
-In your `app.js` where you define your module:
+Normally, and as a recommendation, you have only one indexedDB per app.
+Thus in your `app.js` where you define your module, you do:
 
 ```javascript
 angular.module('myModuleName', ['xc.indexedDB'])
   .config(function ($indexedDBProvider) {
-    // Here you can configure `$indexedDBProvider`.
+    $indexedDBProvider
+      .connection('myIndexedDB')
+      .upgradeDatabase(myVersion, myUpgradeCallback);
   });
 ```
+The connection method takes the databasename as parameter,
+the upgradeCallback has 3 parameters:
+function callback(event, database, transaction). For upgrading your db structure, see 
+https://developer.mozilla.org/en-US/docs/IndexedDB/Using_IndexedDB.
+
+You can also define your own error handlers, overwriting the default ones, which log to console.
 
 
-Inside your controller you can use `$indexedDB`:
+Inside your controller you use `$indexedDB` like this:
 
 ```javascript
 angular.module('myModuleName')
@@ -50,35 +59,37 @@ angular.module('myModuleName')
     
     $scope.objects = [];
     
-    var OBJECT_STORE_NAME = 'objectStoreName';
-    var DATABASE_NAME = 'databaseName';
-    var DATABASE_VERSION = 1;
-    var KEY_PATH = 'id';
-    
-    
-    $indexedDB.switchDB(DATABASE_NAME, DATABASE_VERSION, function onUpgradeNeeded(e, database, transaction) {
-      
-      /**
-       * @type {ObjectStore}
-       */
-      var store = database.createObjectStore(OBJECT_STORE_NAME, {
-          autoIncrement: true,
-          keyPath: KEY_PATH
-      });
-      
-      
-    });
-    
+    var OBJECT_STORE_NAME = 'people';  
+        
     /**
      * @type {ObjectStore}
      */
     var myObjectStore = $indexedDB.objectStore(OBJECT_STORE_NAME);
     
+    myObjectStore.insert({"name": "John Doe", "age": 57}).then(function(e){...});
     
-    myObjectStore.getAll().then(function onSuccess(objects) {
-      
+    myObjectStore.getAll().then(function(results) {  
       // Update scope
-      $scope.objects = objects;
+      $scope.objects = results;
     });
+
+  /**
+   * execute a query:
+   * find all persons older than 40 years
+   */
+   
+   var myQuery = $indexedDB.queryBuilder.$gt(40).$asc.compile;
+   myObjectStore.each(myQuery).then(function(cursor){
+     cursor.key;
+     cursor.value;
+     ...
+   });
   });
 ```
+
+QueryBuilder aka IDBKeyRange needs surely some revision.
+This is all the info you get for now, for more read the code, it's ndoc-annotated! 
+
+Important note: that this software is in alpha state and therefore it's used at your own risk,
+don't make me liable for any damages or loss of data!
+
