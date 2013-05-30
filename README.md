@@ -38,15 +38,16 @@ Inside your controller you can use `$indexedDB`:
 
 ```javascript
 angular.module('myModuleName').controller('myControllerName', function($scope, $indexedDB) {
+  
+  $scope.objects = [];
+  
   var OBJECT_STORE_NAME = 'objectStoreName';
   var DATABASE_NAME = 'databaseName';
   var DATABASE_VERSION = 1;
   var KEY_PATH = 'id';
   
+  
   $indexedDB.switchDB(DATABASE_NAME, DATABASE_VERSION, function onUpgradeNeeded(e, database, transaction) {
-    
-    
-    $scope.objects = [];
     
     /**
      * @type {ObjectStore}
