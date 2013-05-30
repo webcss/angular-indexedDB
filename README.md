@@ -25,7 +25,7 @@ bower install git@github.com:webcss/angular-indexedDB.git --save
 
 ## Usage
 
-In your app.js where you define your module:
+In your `app.js` where you define your module:
 
 ```javascript
 angular.module('myModuleName', ['xc.indexedDB']).config(function ($indexedDBProvider) {
