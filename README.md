@@ -33,3 +33,40 @@ angular.module('myModuleName', ['xc.indexedDB']).config(function ($indexedDBProv
 });
 ```
 
+
+Inside your controller you can use `$indexedDB`:
+
+```javascript
+angular.module('myModuleName').controller('myControllerName', function($scope, $indexedDB) {
+  var OBJECT_STORE_NAME = 'objectStoreName';
+  var DATABASE_NAME = 'databaseName';
+  var DATABASE_VERSION = 1;
+  var KEY_PATH = 'id';
+  
+  $indexedDB.switchDB(DATABASE_NAME, DATABASE_VERSION, function onUpgradeNeeded(e, database, transaction) {
+    
+    
+    $scope.objects = [];
+    
+    /**
+     * @type {ObjectStore}
+     */
+    var store = database.createObjectStore(OBJECT_STORE_NAME, {
+        autoIncrement: true,
+        keyPath: KEY_PATH
+    });
+    
+    /**
+     * @type {ObjectStore}
+     */
+    var myObjectStore = $indexedDB.objectStore(OBJECT_STORE_NAME);
+    
+    
+    myObjectStore.getAll().then(function onSuccess(objects) {
+      
+      // Update scope
+      $scope.objects = objects;
+    });
+  });
+});
+```
