@@ -40,7 +40,11 @@ angular.module('myModuleName', ['xc.indexedDB'])
   .config(function ($indexedDBProvider) {
     $indexedDBProvider
       .connection('myIndexedDB')
-      .upgradeDatabase(myVersion, myUpgradeCallback);
+      .upgradeDatabase(myVersion, function(event, db, tx){
+        var objStore = db.createObjectStore('people', {keypath: 'ssn'});
+        objStore.createIndex('name_idx', 'name', {unique: false});
+        objStore.createIndex('age_idx', 'age', {unique: false});
+      });
   });
 ```
 The connection method takes the databasename as parameter,
@@ -66,7 +70,7 @@ angular.module('myModuleName')
      */
     var myObjectStore = $indexedDB.objectStore(OBJECT_STORE_NAME);
     
-    myObjectStore.insert({"name": "John Doe", "age": 57}).then(function(e){...});
+    myObjectStore.insert({"ssn": "444-444-222-111","name": "John Doe", "age": 57}).then(function(e){...});
     
     myObjectStore.getAll().then(function(results) {  
       // Update scope
@@ -75,10 +79,11 @@ angular.module('myModuleName')
 
   /**
    * execute a query:
+   * presuming we've an index on 'age' field called 'age_idx'
    * find all persons older than 40 years
    */
    
-   var myQuery = $indexedDB.queryBuilder.$gt(40).$asc.compile;
+   var myQuery = $indexedDB.queryBuilder.$index('age_idx').$gt(40).$asc.compile;
    myObjectStore.each(myQuery).then(function(cursor){
      cursor.key;
      cursor.value;
@@ -87,7 +92,7 @@ angular.module('myModuleName')
   });
 ```
 
-QueryBuilder aka IDBKeyRange needs surely some revision.
+QueryBuilder aka IDBKeyRange maybe needs some revision.
 This is all the info you get for now, for more read the code, it's ndoc-annotated! 
 
 Important note: that this software is in alpha state and therefore it's used at your own risk,
