@@ -207,7 +207,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                     var req;
                     if (angular.isArray(data)) {
                         data.forEach(function(item){
-                            req.store.add(item);
+                            req = store.add(item);
                             req.onsuccess = req.onerror = requestCallback;
                         });
                     } else {
