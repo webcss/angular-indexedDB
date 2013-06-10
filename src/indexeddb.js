@@ -311,7 +311,14 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                     } else {
                         req = store.get(keyOrIndex);
                     }
-                    req.onsuccess = req.onerror = requestCallback;
+                    var d = $q.defer();
+                    req.onsuccess = function(e) {
+                        d.resolve(requestCallback(e));
+                    }
+                    req.onerror = function(e) {
+                        d.reject(requestCallback(e));
+                    }
+                    return d.promise;
                 });
             },
             /** 
