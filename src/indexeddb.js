@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @license $indexedDBProvider
  * (c) 2013 Clemens Capitain (webcss)
  * License: MIT
@@ -79,23 +79,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
         return this;
     };  
     
-    /**
-     * @ngdoc function
-     * @name requestCallback
-     * @function
-     *
-     * @description generic callback function applied to onsuccess/onerror callbacks
-     * of IDBObjectStore requests
-     *
-     * @param {event} e DOMEvent
-     * @returns {any value} the event.target.result given by indexedDB
-     */
-    var requestCallback = function(e) {
-        console.log(e);
-        return e.target.result; 
-    };
-    
-    module.$get = ['$q', function($q) {
+    module.$get = ['$q', '$timeout', function($q, $timeout) {
         /** 
          * @ngdoc object
          * @name defaultQueryOptions
@@ -175,6 +159,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                     me.transaction.oncomplete = module.onTransactionComplete;
                     me.transaction.onabort = module.onTransactionAbort;
                     me.onerror = module.onTransactionError;
+
                     return me.transaction.objectStore(storeName);
                 });
             },
@@ -185,7 +170,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * 
              * @description abort the current transaction
              */  
-            abort: function() {
+            "abort": function() {
                 if (this.transaction) {
                     this.transaction.abort();
                 }
@@ -202,18 +187,28 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @params {object or array} data the data to insert
              * @returns {object} $q.promise a promise on successfull execution
              */  
-            insert: function(data){
+            "insert": function(data){
+                var d = $q.defer();
                 return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
                     var req;
                     if (angular.isArray(data)) {
                         data.forEach(function(item){
                             req = store.add(item);
-                            req.onsuccess = req.onerror = requestCallback;
+                            req.onsuccess = req.onerror = function(e) { 
+                                $timeout(function(){
+                                    d.resolve(e.target.result); 
+                                });
+                            };
                         });
                     } else {
                         req = store.add(data);
-                        req.onsuccess = req.onerror = requestCallback;
+                        req.onsuccess = req.onerror = function(e) { 
+                            $timeout(function(){
+                                d.resolve(e.target.result); 
+                            });
+                        };
                     }
+                    return d.promise;
                 });                      
             },
             /** 
@@ -229,18 +224,28 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @params {object or array} data the data to upsert
              * @returns {object} $q.promise a promise on successfull execution
              */
-            upsert: function(data){
+            "upsert": function(data){
+                var d = $q.defer();
                 return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
                     var req;
                     if (angular.isArray(data)) {
                         data.forEach(function(item){
                             req = store.put(item);
-                            req.onsuccess = req.onerror = requestCallback;
+                            req.onsuccess = req.onerror = function(e) { 
+                                $timeout(function(){
+                                    d.resolve(e.target.result); 
+                                });
+                            };
                         });
                     } else {
                         req = store.put(data);
-                        req.onsuccess = req.onerror = requestCallback;
+                        req.onsuccess = req.onerror = function(e) { 
+                            $timeout(function(){
+                                d.resolve(e.target.result); 
+                            });
+                        };
                     }
+                    return d.promise;
                 });                      
             },
             /** 
@@ -254,10 +259,16 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @params {any value} key primary key to indetify a value
              * @returns {object} $q.promise a promise on successfull execution
              */
-            delete: function(key) {
+            "delete": function(key) {
+                var d = $q.defer();
                 return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
                     var req = store.delete(key);
-                    req.onsuccess = req.onerror = requestCallback;
+                    req.onsuccess = req.onerror = function(e) { 
+                        $timeout(function(){
+                            d.resolve(e.target.result); 
+                        });
+                    };
+                    return d.promise;
                 });
             },
             /** 
@@ -270,10 +281,16 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * 
              * @returns {object} $q.promise a promise on successfull execution
              */
-            clear: function() {
+            "clear": function() {
+                var d = $q.defer();
                 return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
                     var req = store.clear();
-                    req.onsuccess = req.onerror = requestCallback;
+                    req.onsuccess = req.onerror = function(e) { 
+                        $timeout(function(){
+                            d.resolve(e.target.result); 
+                        });
+                    };
+                    return d.promise;
                 });                
             },
             /** 
@@ -286,7 +303,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * 
              * @returns {object} $q.promise a promise on successfull execution
              */
-            count: function() {
+            "count": function() {
                 return this.internalObjectStore(this.storeName, READONLY).then(function(store){
                     return store.count();
                 });
@@ -303,15 +320,23 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @params {any value} key the key of an index (*optional*)
              * @returns {any value} value ...wrapped in a promise
              */
-            find: function(keyOrIndex, key){
+            "find": function(keyOrIndex, keyIfIndex){
+                var d = $q.defer();
+                var promise = d.promise;
                 return this.internalObjectStore(this.storeName, READONLY).then(function(store){
-                    var req;
-                    if(key) {
-                        req = store.index(keyOrIndex).get(key); 
+                    var req;                   
+                    
+                    if(keyIfIndex) {
+                        req = store.index(keyOrIndex).get(keyIfIndex);
                     } else {
                         req = store.get(keyOrIndex);
                     }
-                    req.onsuccess = req.onerror = requestCallback;
+                    req.onsuccess = req.onerror = function(e) { 
+                        $timeout(function(){
+                            d.resolve(e.target.result); 
+                        });
+                    };
+                    return promise;
                 });
             },
             /** 
@@ -325,13 +350,17 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * 
              * @returns {array} values ...wrapped in a promise
              */
-            getAll: function() {
+            "getAll": function() {
                 var results = [], d = $q.defer();
                 return this.internalObjectStore(this.storeName, READONLY).then(function(store){
                     var req;
                     if (store.getAll) {         
                         req = store.getAll();
-                        req.onsuccess = req.onerror = requestCallback;
+                        req.onsuccess = req.onerror = function(e) { 
+                            $timeout(function(){
+                                d.resolve(e.target.result); 
+                            });
+                        };
                     } else {
                         req = store.openCursor();
                         req.onsuccess = function(e) {
@@ -345,9 +374,9 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                         };
                         req.onerror = function(e) {
                             d.reject(e.target.result);
-                        }
-                        return d.promise;
+                        };
                     }
+                    return d.promise;
                 });
             },
             /** 
@@ -364,7 +393,8 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * and QueryBuilder for details
              * @returns {object} IDBCursor ...wrapped in a promise
              */
-            each: function(options){
+            "each": function(options){
+                var d = $q.defer();
                 return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
                    var req;
                    options = options || defaultQueryOptions;
@@ -373,7 +403,12 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                     } else {
                         req = store.openCursor(options.keyRange, options.direction);
                     }
-                    req.onsuccess = req.onerror = requestCallback;
+                    req.onsuccess = req.onerror = function(e) { 
+                        $timeout(function(){
+                            d.resolve(e.target.result); 
+                        });
+                    };
+                    return d.promise;
                 });
             }
         };
@@ -399,7 +434,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @params {any value} value bound value
              * @returns {object} this QueryBuilder, for chaining params
              */
-            $lt: function(value) {
+            "$lt": function(value) {
                 this.result.keyRange = IDBKeyRange.upperBound(value, true);
                 return this;
             },
@@ -413,7 +448,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @params {any value} value bound value
              * @returns {object} this QueryBuilder, for chaining params
              */
-            $gt: function(value) {
+            "$gt": function(value) {
                 this.result.keyRange = IDBKeyRange.lowerBound(value, true);
                 return this;
             },
@@ -427,7 +462,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @params {any value} value bound value
              * @returns {object} this QueryBuilder, for chaining params
              */
-            $lte: function(value) {
+            "$lte": function(value) {
                 this.result.keyRange = IDBKeyRange.upperBound(value);
                 return this;
             },
@@ -441,7 +476,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @params {any value} value bound value
              * @returns {object} this QueryBuilder, for chaining params
              */
-            $gte: function(value) {
+            "$gte": function(value) {
                 this.result.keyRange = IDBKeyRange.lowerBound(value);
                 return this;
             },
@@ -455,7 +490,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @params {any value} value bound value
              * @returns {object} this QueryBuilder, for chaining params
              */
-            $eq: function(value) {
+            "$eq": function(value) {
                 this.result.keyRange = IDBKeyRange.only(value);
                 return this;
             },
@@ -473,7 +508,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @params {boolean} exHi optional, exclude upper bound value
              * @returns {object} this QueryBuilder, for chaining params
              */
-            $between: function(lowValue, hiValue, exLow, exHi) {
+            "$between": function(lowValue, hiValue, exLow, exHi) {
                 this.result.keyRange = IDBKeyRange.bound(lowValue,hiValue,exLow||false,exHi||false);
                 return this;
             },
@@ -488,7 +523,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * duplicates (*optional*)
              * @returns {object} this QueryBuilder, for chaining params
              */
-            $asc: function(unique) {
+            "$asc": function(unique) {
                 this.result.order = (unique)? NEXTUNIQUE: NEXT;
                 return this;
             },
@@ -503,7 +538,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * duplicates (*optional*)
              * @returns {object} this QueryBuilder, for chaining params
              */
-            $desc: function(unique) {
+            "$desc": function(unique) {
                 this.result.order = (unique)? PREVUNIQUE: PREV;
                 return this;
             },
@@ -517,7 +552,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @params {string} indexName index to use
              * @returns {object} this QueryBuilder, for chaining params
              */
-            $index: function(indexName) {
+            "$index": function(indexName) {
                 this.result.useIndex = indexName;
                 return this;
             },
@@ -529,7 +564,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @description returns an object to be passed to ObjectStore.each
              * @returns {object} queryOptions 
              */
-            compile: function() {
+            "compile": function() {
                 return this.result;
             }
         };
@@ -552,7 +587,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @params {string} storename the name of the objectstore to use
              * @returns {object} ObjectStore
              */
-            objectStore: function(storeName) {
+            "objectStore": function(storeName) {
                 return new ObjectStore(storeName);
             },
             /** 
@@ -567,7 +602,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * 
              * @returns {object} DBInfo
              */
-            dbInfo: function() {
+            "dbInfo": function() {
                 var storeNames, stores = [], tx, store;
                 return dbPromise().then(function(db){
                     storeNames = Array.prototype.slice.apply(db.objectStoreNames);
@@ -597,7 +632,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @description closes the current active database
              * @returns {object} this
              */
-            closeDB: function() {
+            "closeDB": function() {
                 dbPromise().then(function(db){
                     db.close();
                 });
@@ -615,7 +650,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @params {Function} upgradeCallBack the callback which proceeds the upgrade
              * @returns {object} this
              */
-            switchDB: function(databaseName, version, upgradeCallback) {
+            "switchDB": function(databaseName, version, upgradeCallback) {
                 this.closeDB();
                 module.db = null;
                 module.dbName = databaseName;
@@ -632,7 +667,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * 
              * @returns {object} QueryBuilder
              */
-            queryBuilder: function() {
+            "queryBuilder": function() {
                 return new QueryBuilder();
             }
         };
