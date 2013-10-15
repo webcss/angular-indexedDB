@@ -41,7 +41,7 @@ angular.module('myModuleName', ['xc.indexedDB'])
     $indexedDBProvider
       .connection('myIndexedDB')
       .upgradeDatabase(myVersion, function(event, db, tx){
-        var objStore = db.createObjectStore('people', {keypath: 'ssn'});
+        var objStore = db.createObjectStore('people', {keyPath: 'ssn'});
         objStore.createIndex('name_idx', 'name', {unique: false});
         objStore.createIndex('age_idx', 'age', {unique: false});
       });
