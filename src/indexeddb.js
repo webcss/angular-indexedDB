@@ -25,6 +25,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
     module.dbName = '';
     module.dbVersion = 1;
     module.db = null;
+    module.dbPromise = null;
 
     /** predefined callback functions, can be customized in angular.config */
     module.onTransactionComplete = function(e) {
@@ -106,13 +107,17 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
          * @returns {object} promise $q.promise to fullfill connection
          */
         var dbPromise = function() {
-            var dbReq, defered = $q.defer();
-            if(!module.db) {
+            var dbReq, deferred;
+
+            if (!module.dbPromise) {
+                deferred = $q.defer();
+                module.dbPromise = deferred.promise;
+
                 dbReq = indexedDB.open(module.dbName, module.dbVersion || 1);
                 dbReq.onsuccess = function(e) {
                     module.db = dbReq.result;
                     $rootScope.$apply(function(){
-                        defered.resolve(module.db);
+                        deferred.resolve(module.db);
                     });
                 };
                 dbReq.onblocked = module.onDatabaseBlocked;
@@ -123,10 +128,9 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                         ' to version ' + e.newVersion + '...');
                     module.upgradeCallback && module.upgradeCallback(e, db, tx);
                 };
-            } else {
-                defered.resolve(module.db);
             }
-            return defered.promise;
+
+            return module.dbPromise;
         };
         /**
          * @ngdoc object
@@ -640,6 +644,10 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                 dbPromise().then(function(db){
                     db.close();
                 });
+
+                module.db = null;
+                module.dbPromise = null;
+
                 return this;
             },
             /**
@@ -656,7 +664,6 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              */
             "switchDB": function(databaseName, version, upgradeCallback) {
                 this.closeDB();
-                module.db = null;
                 module.dbName = databaseName;
                 module.dbVersion = version || 1;
                 module.upgradeCallback = upgradeCallback || function() {};
