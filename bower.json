@@ -1,0 +1,16 @@
+{
+  "name": "angular-indexedDB",
+  "version": "0.0.0",
+  "homepage": "https://github.com/webcss/angular-indexedDB",
+  "authors": [
+    "webcss <webcss@capitain-reinigung.de>"
+  ],
+  "description": "An angularjs serviceprovider to utilize indexedDB with angular",
+  "main": "src/indexeddb.js",
+  "keywords": [
+    "angularjs",
+    "indexeddb",
+    "angular"
+  ],
+  "license": "MIT"
+}
