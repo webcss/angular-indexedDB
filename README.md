@@ -90,6 +90,16 @@ angular.module('myModuleName')
      ...
    });
   });
+  
+  /*
+  * an alternative query is to get the results as an array
+  */
+  
+  var myQuery = $indexedDB.queryBuilder.$index('age_idx').$gt(40).$asc.compile;
+  myObjectStore.query(myQuery).then(function(results){
+    // Update scope
+	$scope.objects = results;
+  }
 ```
 
 QueryBuilder aka IDBKeyRange maybe needs some revision.
