@@ -196,14 +196,18 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
             "insert": function(data){
                 var d = $q.defer();
                 return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
-                    var req;
+                    var req, ctr = 1;
                     if (angular.isArray(data)) {
                         data.forEach(function(item){
                             req = store.add(item);
                             req.onsuccess = req.onerror = function(e) {
-                                $rootScope.$apply(function(){
-                                    d.resolve(e.target.result);
-                                });
+								if (ctr === data.length) {
+									$rootScope.$apply(function(){
+										d.resolve(e.target.result);
+									});
+								} else {
+									ctr++;
+								}
                             };
                         });
                     } else {
@@ -418,7 +422,43 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                     };
                     return d.promise;
                 });
-            }
+            },
+
+			/**
+			 * @ngdoc method
+			 * @name ObjectStore.each
+			 * @function
+			 *
+			 * @description retrieves values from the objectstore based on query parameters
+			 *
+			 * @params {object} options optional query parameters, see defaultQueryOptions
+			 * and QueryBuilder for details
+			 * @returns {array} values ...wrapped in a promise
+			 */
+			"query": function(options){
+				var results = [], d = $q.defer();
+				return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
+					var req;
+					options = options || defaultQueryOptions;
+					if(options.useIndex) {
+						req = store.index(options.useIndex).openCursor(options.keyRange, options.direction);
+					} else {
+						req = store.openCursor(options.keyRange, options.direction);
+					}
+					req.onsuccess = req.onerror = function(e) {
+						var cursor = e.target.result;
+						if(cursor){
+							results.push(cursor.value);
+							cursor.continue();
+						} else {
+							$rootScope.$apply(function(){
+								d.resolve(results);
+							});
+						}
+					};
+					return d.promise;
+				});
+			}
         };
 
         /**
