@@ -196,14 +196,18 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
             "insert": function(data){
                 var d = $q.defer();
                 return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
-                    var req;
+                    var req, ctr = 1;
                     if (angular.isArray(data)) {
                         data.forEach(function(item){
                             req = store.add(item);
                             req.onsuccess = req.onerror = function(e) {
-                                $rootScope.$apply(function(){
-                                    d.resolve(e.target.result);
-                                });
+								if (ctr === data.length) {
+									$rootScope.$apply(function(){
+										d.resolve(e.target.result);
+									});
+								} else {
+									ctr++;
+								}
                             };
                         });
                     } else {
