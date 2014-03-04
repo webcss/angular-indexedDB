@@ -8,10 +8,10 @@ An angularjs serviceprovider to utilize indexedDB with angular
 For installation the use of Bower is recommended.
 
 ### Bower
-Call the following command on your command line: 
+Call the following command on your command line:
 
 ```sh
-bower install git@github.com:webcss/angular-indexedDB.git --save
+bower install --save angular-indexedDB
 ```
 
 And add the following line to your html file, for example `index.html`:
