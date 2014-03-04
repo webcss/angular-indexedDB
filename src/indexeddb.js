@@ -198,12 +198,24 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                 return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
                     var req;
                     if (angular.isArray(data)) {
-                        data.forEach(function(item){
+                        data.forEach(function(item, i){
                             req = store.add(item);
-                            req.onsuccess = req.onerror = function(e) {
+                            req.onnotify = function(e) {
+                               $rootScope.$apply(function(){
+                                    d.notify(e.target.result);
+                                }); 
+                            }
+                            req.onerror = function(e) {
                                 $rootScope.$apply(function(){
-                                    d.resolve(e.target.result);
+                                    d.reject(e.target.result);
                                 });
+                            };
+                            req.onsuccess = function(e) {
+                                if(i == data.length) {
+                                    $rootScope.$apply(function(){
+                                        d.resolve(e.target.result);
+                                    });
+                                }
                             };
                         });
                     } else {
@@ -235,12 +247,24 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                 return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
                     var req;
                     if (angular.isArray(data)) {
-                        data.forEach(function(item){
+                        data.forEach(function(item, i){
                             req = store.put(item);
-                            req.onsuccess = req.onerror = function(e) {
+                            req.onnotify = function(e) {
+                               $rootScope.$apply(function(){
+                                    d.notify(e.target.result);
+                                }); 
+                            }
+                            req.onerror = function(e) {
                                 $rootScope.$apply(function(){
-                                    d.resolve(e.target.result);
+                                    d.reject(e.target.result);
                                 });
+                            };
+                            req.onsuccess = function(e) {
+                                if(i == data.length) {
+                                    $rootScope.$apply(function(){
+                                        d.resolve(e.target.result);
+                                    });
+                                }
                             };
                         });
                     } else {
