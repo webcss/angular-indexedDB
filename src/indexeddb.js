@@ -198,7 +198,10 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                 return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
                     var req;
                     if (angular.isArray(data)) {
+						var promises = [];
                         data.forEach(function(item, i){
+							var defer = $q.defer();
+							promises.push(defer.promise);
                             req = store.add(item);
                             req.onnotify = function(e) {
                                $rootScope.$apply(function(){
@@ -211,13 +214,12 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                                 });
                             };
                             req.onsuccess = function(e) {
-                                if(i == data.length) {
-                                    $rootScope.$apply(function(){
-                                        d.resolve(e.target.result);
-                                    });
-                                }
+								defer.resolve();
                             };
                         });
+						$q.all(promises).then(function(){
+							d.resolve();
+						});
                     } else {
                         req = store.add(data);
                         req.onsuccess = req.onerror = function(e) {
@@ -247,7 +249,10 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                 return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
                     var req;
                     if (angular.isArray(data)) {
+						var promises = [];
                         data.forEach(function(item, i){
+							var defer = $q.defer();
+							promises.push(defer.promise);
                             req = store.put(item);
                             req.onnotify = function(e) {
                                $rootScope.$apply(function(){
@@ -260,13 +265,12 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                                 });
                             };
                             req.onsuccess = function(e) {
-                                if(i == data.length) {
-                                    $rootScope.$apply(function(){
-                                        d.resolve(e.target.result);
-                                    });
-                                }
+								defer.resolve();
                             };
                         });
+						$q.all(promises).then(function(){
+							d.resolve();
+						});
                     } else {
                         req = store.put(data);
                         req.onsuccess = req.onerror = function(e) {
