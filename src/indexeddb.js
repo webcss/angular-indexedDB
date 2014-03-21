@@ -96,6 +96,29 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
             keyRange: null,
             direction: NEXT
         };
+
+        /**
+         * @ngdoc function
+         * @name resolve/reject
+         * @function
+         *
+         * @description convenience method for resolving or rejecting a promise inside of a
+         * `$rootScope.apply()`
+         *
+         * @params {object} deferred to resolve or reject
+         * @params {*} data to pass to resolution function
+         */
+        var resolve = function(deferred, data){
+            $rootScope.$apply(function(){
+                deferred.resolve(data);
+            });
+        };
+        var reject = function(deferred, data){
+            $rootScope.$apply(function(){
+                deferred.reject(data);
+            });
+        };
+
         /**
          * @ngdoc object
          * @name dbPromise
@@ -107,31 +130,96 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
          * @returns {object} promise $q.promise to fullfill connection
          */
         var dbPromise = function() {
-            var dbReq, deferred;
+            if(module.dbPromise) {
+                return module.dbPromise;
+            }
+            
+            var d = $q.defer();
+            module.dbPromise = d.promise;
 
-            if (!module.dbPromise) {
-                deferred = $q.defer();
-                module.dbPromise = deferred.promise;
-
-                dbReq = indexedDB.open(module.dbName, module.dbVersion || 1);
-                dbReq.onsuccess = function(e) {
+            try {
+                var dbReq = indexedDB.open(module.dbName, module.dbVersion || 1);
+                dbReq.onsuccess = function() {
                     module.db = dbReq.result;
-                    $rootScope.$apply(function(){
-                        deferred.resolve(module.db);
-                    });
+                    resolve(d, module.db);
                 };
-                dbReq.onblocked = module.onDatabaseBlocked;
-                dbReq.onerror = module.onDatabaseError;
+                dbReq.onblocked = function(e){
+                    reject(d, dbReq.error);
+                    module.onDatabaseBlocked(e);
+                };
+                dbReq.onerror = function(e){
+                    reject(d, dbReq.error);
+                    module.onDatabaseError(e);
+                };
                 dbReq.onupgradeneeded = function(e) {
                     var db = e.target.result, tx = e.target.transaction;
-                    console.log('upgrading database "' + db.name + '" from version ' + e.oldVersion+
+                    console.log('upgrading database "' + db.name + '" from version ' + e.oldVersion +
                         ' to version ' + e.newVersion + '...');
                     module.upgradeCallback && module.upgradeCallback(e, db, tx);
                 };
+            } catch (e) {
+                d.reject(e);
+                module.onDatabaseError(e);
             }
-
             return module.dbPromise;
         };
+
+        /**
+         * @ngdoc function
+         * @name promiseRequest
+         * @function
+         *
+         * @description wraps an IDBRequest in a $q promise. 
+         *
+         * @params {object} IDBObjectStore that we are working on
+         * @params {function} fn function to call
+         * @params {*} arguments to be passed to the function
+         * @returns {object} Promise that will resolve with the IDBRequest's result.
+         */
+        var promiseRequest = function(store, fn) {
+            var d = $q.defer();
+            var args = Array.prototype.slice.call(arguments, 2);
+            try {
+                var req = fn.apply(store, args);
+                req.onerror = function() {
+                    reject(d, req.error);
+                };
+                req.onsuccess = function() {
+                    resolve(d, req.result);
+                };
+            } catch (e) {
+                d.reject(e);
+            }
+            return d.promise;
+        };
+
+        /**
+         * @ngdoc function
+         * @name spreadRequest
+         * @function
+         *
+         * @description spreads a promiseRequest across an array of objects.
+         *
+         * @params {object} IDBObjectStore that we are working on
+         * @params {function} fn function to call
+         * @params {array|object} object to be passed to function, or an array of 
+         *   objects to be individually passed to the function.
+         * @returns {object} If passed a single object, a promise that will resolve with
+         *   the IDBRequest's result.  If passed an array, a promise that will resolve
+         *   with an array with the results of each individual requests (via `$q.all()`).
+         */
+        var spreadRequest = function(store, fn, data) {
+            if(angular.isArray(data)){
+                var promises = [];
+                for(var i=0; i < data.length; i++){
+                    promises[i] = promiseRequest(store, fn, data[i]);
+                }
+                return $q.all(promises);
+            } else {
+                return promiseRequest(store, fn, data);
+            }
+        };
+
         /**
          * @ngdoc object
          * @name ObjectStore
@@ -194,39 +282,8 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @returns {object} $q.promise a promise on successfull execution
              */
             "insert": function(data){
-                var d = $q.defer();
                 return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
-                    var req;
-                    if (angular.isArray(data)) {
-                        data.forEach(function(item, i){
-                            req = store.add(item);
-                            req.onnotify = function(e) {
-                               $rootScope.$apply(function(){
-                                    d.notify(e.target.result);
-                                }); 
-                            }
-                            req.onerror = function(e) {
-                                $rootScope.$apply(function(){
-                                    d.reject(e.target.result);
-                                });
-                            };
-                            req.onsuccess = function(e) {
-                                if(i == data.length) {
-                                    $rootScope.$apply(function(){
-                                        d.resolve(e.target.result);
-                                    });
-                                }
-                            };
-                        });
-                    } else {
-                        req = store.add(data);
-                        req.onsuccess = req.onerror = function(e) {
-                            $rootScope.$apply(function(){
-                                d.resolve(e.target.result);
-                            });
-                        };
-                    }
-                    return d.promise;
+                    return spreadRequest(store, store.add, data);
                 });
             },
             /**
@@ -243,39 +300,8 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @returns {object} $q.promise a promise on successfull execution
              */
             "upsert": function(data){
-                var d = $q.defer();
                 return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
-                    var req;
-                    if (angular.isArray(data)) {
-                        data.forEach(function(item, i){
-                            req = store.put(item);
-                            req.onnotify = function(e) {
-                               $rootScope.$apply(function(){
-                                    d.notify(e.target.result);
-                                }); 
-                            }
-                            req.onerror = function(e) {
-                                $rootScope.$apply(function(){
-                                    d.reject(e.target.result);
-                                });
-                            };
-                            req.onsuccess = function(e) {
-                                if(i == data.length) {
-                                    $rootScope.$apply(function(){
-                                        d.resolve(e.target.result);
-                                    });
-                                }
-                            };
-                        });
-                    } else {
-                        req = store.put(data);
-                        req.onsuccess = req.onerror = function(e) {
-                            $rootScope.$apply(function(){
-                                d.resolve(e.target.result);
-                            });
-                        };
-                    }
-                    return d.promise;
+                    return spreadRequest(store, store.put, data);
                 });
             },
             /**
@@ -290,15 +316,8 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @returns {object} $q.promise a promise on successfull execution
              */
             "delete": function(key) {
-                var d = $q.defer();
                 return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
-                    var req = store.delete(key);
-                    req.onsuccess = req.onerror = function(e) {
-                        $rootScope.$apply(function(){
-                            d.resolve(e.target.result);
-                        });
-                    };
-                    return d.promise;
+                    return promiseRequest(store, store.delete, key);
                 });
             },
             /**
@@ -312,15 +331,8 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @returns {object} $q.promise a promise on successfull execution
              */
             "clear": function() {
-                var d = $q.defer();
                 return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
-                    var req = store.clear();
-                    req.onsuccess = req.onerror = function(e) {
-                        $rootScope.$apply(function(){
-                            d.resolve(e.target.result);
-                        });
-                    };
-                    return d.promise;
+                    return promiseRequest(store, store.clear);
                 });
             },
             /**
@@ -335,7 +347,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              */
             "count": function() {
                 return this.internalObjectStore(this.storeName, READONLY).then(function(store){
-                    return store.count();
+                    return promiseRequest(store, store.count);
                 });
             },
             /**
@@ -351,22 +363,12 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @returns {any value} value ...wrapped in a promise
              */
             "find": function(keyOrIndex, keyIfIndex){
-                var d = $q.defer();
-                var promise = d.promise;
                 return this.internalObjectStore(this.storeName, READONLY).then(function(store){
-                    var req;
-
-                    if(keyIfIndex) {
-                        req = store.index(keyOrIndex).get(keyIfIndex);
+                    if(keyIfIndex){
+                        return promiseRequest(store.index(keyOrIndex), store.index(keyOrIndex).get, store, keyIfIndex);
                     } else {
-                        req = store.get(keyOrIndex);
+                        return promiseRequest(store, store.get, keyOrIndex);
                     }
-                    req.onsuccess = req.onerror = function(e) {
-                        $rootScope.$apply(function(){
-                            d.resolve(e.target.result);
-                        });
-                    };
-                    return promise;
                 });
             },
             /**
@@ -381,32 +383,29 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @returns {array} values ...wrapped in a promise
              */
             "getAll": function() {
-                var results = [], d = $q.defer();
                 return this.internalObjectStore(this.storeName, READONLY).then(function(store){
-                    var req;
                     if (store.getAll) {
-                        req = store.getAll();
-                        req.onsuccess = req.onerror = function(e) {
-                            $rootScope.$apply(function(){
-                                d.resolve(e.target.result);
-                            });
-                        };
-                    } else {
-                        req = store.openCursor();
+                        return promiseRequest(store, store.getAll);
+                    }
+
+                    //If native getAll is not available, do this:
+                    var results = [], d = $q.defer();
+                    try {
+                        var req = store.openCursor();
                         req.onsuccess = function(e) {
                             var cursor = e.target.result;
                             if(cursor){
                                 results.push(cursor.value);
                                 cursor.continue();
                             } else {
-                                $rootScope.$apply(function(){
-                                    d.resolve(results);
-                                });
+                                resolve(d, results);
                             }
                         };
                         req.onerror = function(e) {
-                            d.reject(e.target.result);
+                            reject(d, req.error);
                         };
+                    } catch (e) {
+                        d.reject(e);
                     }
                     return d.promise;
                 });
@@ -428,19 +427,9 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
             "each": function(options){
                 var d = $q.defer();
                 return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
-                   var req;
-                   options = options || defaultQueryOptions;
-                   if(options.useIndex) {
-                        req = store.index(options.useIndex).openCursor(options.keyRange, options.direction);
-                    } else {
-                        req = store.openCursor(options.keyRange, options.direction);
-                    }
-                    req.onsuccess = req.onerror = function(e) {
-                        $rootScope.$apply(function(){
-                            d.resolve(e.target.result);
-                        });
-                    };
-                    return d.promise;
+                    options = options || defaultQueryOptions;
+                    store = options.useIndex ? store.index(options.useIndex) : store;
+                    return promiseRequest(store, store.openCursor, options.keyRange, options.direction);
                 });
             }
         };
