@@ -337,9 +337,22 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              *
              * @returns {object} $q.promise a promise on successfull execution
              */
-            "count": function() {
+			"count": function(index, key) {
+                var d = $q.defer();
+                var promise = d.promise;
                 return this.internalObjectStore(this.storeName, READONLY).then(function(store){
-                    return store.count();
+                    var req;
+					if(index) {
+                        req = store.index(index).count(key);
+                    } else {
+                        req = store.count();
+                    }
+					req.onsuccess = req.onerror = function(e) {
+                        $rootScope.$apply(function(){
+                            d.resolve(e.target.result);
+                        });
+                    };
+                    return promise;
                 });
             },
             /**
