@@ -11,7 +11,7 @@ For installation the use of Bower is recommended.
 Call the following command on your command line:
 
 ```sh
-bower install --save angular-indexedDB
+bower install --save angularjs-indexedDB
 ```
 
 And add the following line to your html file, for example `index.html`:
