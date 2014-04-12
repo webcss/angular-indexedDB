@@ -211,7 +211,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                                 });
                             };
                             req.onsuccess = function(e) {
-                                if(i == data.length) {
+                                if(i == data.length - 1) {
                                     $rootScope.$apply(function(){
                                         d.resolve(e.target.result);
                                     });
@@ -260,7 +260,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                                 });
                             };
                             req.onsuccess = function(e) {
-                                if(i == data.length) {
+                                if(i == data.length - 1) {
                                     $rootScope.$apply(function(){
                                         d.resolve(e.target.result);
                                     });
