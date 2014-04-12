@@ -83,7 +83,7 @@ angular.module('myModuleName')
    * find all persons older than 40 years
    */
    
-   var myQuery = $indexedDB.queryBuilder.$index('age_idx').$gt(40).$asc.compile;
+   var myQuery = $indexedDB.queryBuilder().$index('age_idx').$gt(40).$asc.compile();
    myObjectStore.each(myQuery).then(function(cursor){
      cursor.key;
      cursor.value;
