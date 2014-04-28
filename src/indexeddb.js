@@ -417,15 +417,16 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @function
              *
              * @description wrapper for IDBObjectStore.openCursor or IDBIndex.openCursor.
-             * returns an IDBCursor for further manipulation. See indexedDB documentation
-             * for details on this.
+             * returns a promise that is resolved when the cursor reaches an end.
+             * On every "onsuccess" event of the cursor, the callback function is called, passing the cursor itself
              * https://developer.mozilla.org/en-US/docs/IndexedDB/Using_IndexedDB#Using_a_cursor
              *
+             * @params {Function} onsuccessCallback the callback which runs when the onsuccess event is triggered
              * @params {object} options optional query parameters, see defaultQueryOptions
              * and QueryBuilder for details
              * @returns {object} IDBCursor ...wrapped in a promise
              */
-            "each": function(options){
+            "each": function(callback, options){
                 var d = $q.defer();
                 return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
                    var req;
@@ -437,7 +438,10 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                     }
                     req.onsuccess = req.onerror = function(e) {
                         $rootScope.$apply(function(){
-                            d.resolve(e.target.result);
+                            if(!e.target.result){
+                                d.resolve(e.target.result);
+                            }
+                            callback(e.target.result);
                         });
                     };
                     return d.promise;
