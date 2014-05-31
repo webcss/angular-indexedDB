@@ -203,7 +203,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                             req.onnotify = function(e) {
                                $rootScope.$apply(function(){
                                     d.notify(e.target.result);
-                                }); 
+                                });
                             }
                             req.onerror = function(e) {
                                 $rootScope.$apply(function(){
@@ -252,7 +252,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                             req.onnotify = function(e) {
                                $rootScope.$apply(function(){
                                     d.notify(e.target.result);
-                                }); 
+                                });
                             }
                             req.onerror = function(e) {
                                 $rootScope.$apply(function(){
@@ -423,10 +423,10 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              *
              * @params {object} options optional query parameters, see defaultQueryOptions
              * and QueryBuilder for details
-             * @returns {object} IDBCursor ...wrapped in a promise
+             * @returns {object} Array of values from store ...wrapped in a promise
              */
             "each": function(options){
-                var d = $q.defer();
+                var results = [], d = $q.defer();
                 return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
                    var req;
                    options = options || defaultQueryOptions;
@@ -436,9 +436,16 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                         req = store.openCursor(options.keyRange, options.direction);
                     }
                     req.onsuccess = req.onerror = function(e) {
-                        $rootScope.$apply(function(){
-                            d.resolve(e.target.result);
-                        });
+                    	var cursor = e.target.result;
+                        if(cursor){
+                            	if(!options.filter || options.filter(cursor.value))
+                            		results.push(cursor.value);
+                            cursor.continue();
+                        } else {
+                            $rootScope.$apply(function(){
+                                d.resolve(results);
+                            });
+						}
                     };
                     return d.promise;
                 });
@@ -586,6 +593,20 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              */
             "$index": function(indexName) {
                 this.result.useIndex = indexName;
+                return this;
+            },
+            /**
+             * @ngdoc method
+             * @name QueryBuilder.$filter
+             * @function
+             *
+             * @description optionally specify an function to determine if the item should be included
+             *
+             * @params {function} filter filter function to use
+             * @returns {object} this QueryBuilder, for chaining params
+             */
+            "$filter": function(filter) {
+                this.result.filter = filter;
                 return this;
             },
             /**
