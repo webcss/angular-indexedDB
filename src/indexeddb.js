@@ -204,7 +204,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                                $rootScope.$apply(function(){
                                     d.notify(e.target.result);
                                 }); 
-                            }
+                            };
                             req.onerror = function(e) {
                                 $rootScope.$apply(function(){
                                     d.reject(e.target.result);
@@ -253,7 +253,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                                $rootScope.$apply(function(){
                                     d.notify(e.target.result);
                                 }); 
-                            }
+                            };
                             req.onerror = function(e) {
                                 $rootScope.$apply(function(){
                                     d.reject(e.target.result);
@@ -334,8 +334,15 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @returns {object} $q.promise a promise on successfull execution
              */
             "count": function() {
+                var d = $q.defer();
                 return this.internalObjectStore(this.storeName, READONLY).then(function(store){
-                    return store.count();
+                    var req = store.count();
+                    req.onsuccess = req.onerror = function(e) {
+                        $rootScope.$apply(function(){
+                            d.resolve(e.target.result);
+                        });
+                    };
+                    return d.promise;
                 });
             },
             /**
