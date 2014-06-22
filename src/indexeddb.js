@@ -26,6 +26,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
     module.dbVersion = 1;
     module.db = null;
     module.dbPromise = null;
+    module.outStandingTransactionCount = 0;
 
     /** predefined callback functions, can be customized in angular.config */
     module.onTransactionComplete = function(e) {
@@ -80,6 +81,17 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
         return this;
     };
 
+    var wrapInTransactionCount = function(wrappedFunction) {
+        module.outStandingTransactionCount++;
+        return function() {
+            try {
+                wrappedFunction.apply(arguments);
+            } finally {
+                module.outStandingTransactionCount--;
+            }
+        };
+    };
+
     module.$get = ['$q', '$rootScope', function($q, $rootScope) {
         /**
          * @ngdoc object
@@ -132,6 +144,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
 
             return module.dbPromise;
         };
+
         /**
          * @ngdoc object
          * @name ObjectStore
@@ -162,7 +175,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                 var me = this;
                 return dbPromise().then(function(db){
                     me.transaction = db.transaction([storeName], mode || READONLY);
-                    me.transaction.oncomplete = module.onTransactionComplete;
+                    me.transaction.oncomplete = wrapInTransactionCount( module.onTransactionComplete );
                     me.transaction.onabort = module.onTransactionAbort;
                     me.onerror = module.onTransactionError;
 
@@ -692,6 +705,26 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                 module.dbVersion = version || 1;
                 module.upgradeCallback = upgradeCallback || function() {};
                 return this;
+            },
+            /**
+             * @ngdoc method
+             * @name $indexedDB.flush
+             * @function
+             *
+             * @description Flushes promises and waits for all transactions to complete.
+             */
+            "flush": function(doneCallback) {
+                var timeoutId = -1;
+                dbPromise().finally( function() {
+                    timeoutId = setInterval(function () {
+                        $rootScope.$apply(function() {
+                            if (module.outStandingTransactionCount <= 0) {
+                                doneCallback();
+                                window.clearInterval(timeoutId);
+                            }
+                        });
+                    }, 40);
+                });
             },
             /**
              * @ngdoc method
