@@ -26,6 +26,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
     module.dbVersion = 1;
     module.db = null;
     module.dbPromise = null;
+    module.outStandingTransactionCount = 0;
 
     /** predefined callback functions, can be customized in angular.config */
     module.onTransactionComplete = function(e) {
@@ -80,6 +81,17 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
         return this;
     };
 
+    var wrapInTransactionCount = function(wrappedFunction) {
+        module.outStandingTransactionCount++;
+        return function() {
+            try {
+                wrappedFunction.apply(arguments);
+            } finally {
+                module.outStandingTransactionCount--;
+            }
+        };
+    };
+
     module.$get = ['$q', '$rootScope', function($q, $rootScope) {
         /**
          * @ngdoc object
@@ -132,6 +144,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
 
             return module.dbPromise;
         };
+
         /**
          * @ngdoc object
          * @name ObjectStore
@@ -162,7 +175,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                 var me = this;
                 return dbPromise().then(function(db){
                     me.transaction = db.transaction([storeName], mode || READONLY);
-                    me.transaction.oncomplete = module.onTransactionComplete;
+                    me.transaction.oncomplete = wrapInTransactionCount( module.onTransactionComplete );
                     me.transaction.onabort = module.onTransactionAbort;
                     me.onerror = module.onTransactionError;
 
@@ -224,6 +237,48 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                             $rootScope.$apply(function(){
                                 d.resolve(e.target.result);
                             });
+                        };
+                    }
+                    return d.promise;
+                });
+            },
+            /**
+             * @ngdoc method
+             * @name ObjectStore.getAllKeys
+             * @function
+             *
+             * @description wrapper for IDBObjectStore.getAlKeysl (or shim).
+             * retrieves all keys from objectstore using IDBObjectStore.getAllKeys
+             * or a cursor request if getAllKeys is not implemented
+             *
+             * @returns {array} keys ... wrapped in a promise
+             */
+            "getAllKeys": function() {
+                var results = [], d = $q.defer();
+                return this.internalObjectStore(this.storeName, READONLY).then(function(store){
+                    var req;
+                    if (store.getAllKeys) {
+                        req = store.getAllKeys();
+                        req.onsuccess = req.onerror = function(e) {
+                            $rootScope.$apply(function(){
+                                d.resolve(e.target.result);
+                            });
+                        };
+                    } else {
+                        req = store.openCursor();
+                        req.onsuccess = function(e) {
+                            var cursor = e.target.result;
+                            if(cursor){
+                                results.push(cursor.key);
+                                cursor.continue();
+                            } else {
+                                $rootScope.$apply(function(){
+                                    d.resolve(results);
+                                });
+                            }
+                        };
+                        req.onerror = function(e) {
+                            d.reject(e.target.result);
                         };
                     }
                     return d.promise;
@@ -692,6 +747,26 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                 module.dbVersion = version || 1;
                 module.upgradeCallback = upgradeCallback || function() {};
                 return this;
+            },
+            /**
+             * @ngdoc method
+             * @name $indexedDB.flush
+             * @function
+             *
+             * @description Flushes promises and waits for all transactions to complete.
+             */
+            "flush": function(doneCallback) {
+                var timeoutId = -1;
+                dbPromise().finally( function() {
+                    timeoutId = setInterval(function () {
+                        $rootScope.$apply(function() {
+                            if (module.outStandingTransactionCount <= 0) {
+                                doneCallback();
+                                window.clearInterval(timeoutId);
+                            }
+                        });
+                    }, 40);
+                });
             },
             /**
              * @ngdoc method
