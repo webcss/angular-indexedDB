@@ -244,6 +244,48 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
             },
             /**
              * @ngdoc method
+             * @name ObjectStore.getAllKeys
+             * @function
+             *
+             * @description wrapper for IDBObjectStore.getAlKeysl (or shim).
+             * retrieves all keys from objectstore using IDBObjectStore.getAllKeys
+             * or a cursor request if getAllKeys is not implemented
+             *
+             * @returns {array} keys ... wrapped in a promise
+             */
+            "getAllKeys": function() {
+                var results = [], d = $q.defer();
+                return this.internalObjectStore(this.storeName, READONLY).then(function(store){
+                    var req;
+                    if (store.getAllKeys) {
+                        req = store.getAllKeys();
+                        req.onsuccess = req.onerror = function(e) {
+                            $rootScope.$apply(function(){
+                                d.resolve(e.target.result);
+                            });
+                        };
+                    } else {
+                        req = store.openCursor();
+                        req.onsuccess = function(e) {
+                            var cursor = e.target.result;
+                            if(cursor){
+                                results.push(cursor.key);
+                                cursor.continue();
+                            } else {
+                                $rootScope.$apply(function(){
+                                    d.resolve(results);
+                                });
+                            }
+                        };
+                        req.onerror = function(e) {
+                            d.reject(e.target.result);
+                        };
+                    }
+                    return d.promise;
+                });
+            },
+            /**
+             * @ngdoc method
              * @name ObjectStore.upsert
              * @function
              *
