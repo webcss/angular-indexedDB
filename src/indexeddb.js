@@ -117,7 +117,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                 deferred = $q.defer();
                 module.dbPromise = deferred.promise;
 
-                dbReq = indexedDB.open(module.dbName, module.dbVersion || 1);
+                dbReq = $window.indexedDB.open(module.dbName, module.dbVersion || 1);
                 dbReq.onsuccess = function(e) {
                     module.db = dbReq.result;
                     $rootScope.$apply(function(){
