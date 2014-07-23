@@ -5,11 +5,6 @@
  */
 
 'use strict';
-/** unify browser specific implementations */
-if(!('indexedDB' in window)) {
-    var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
-}
-var IDBKeyRange=window.IDBKeyRange||window.mozIDBKeyRange||window.webkitIDBKeyRange||window.msIDBKeyRange;
 
 angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
     var module          = this,
@@ -82,7 +77,14 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
         return this;
     };
 
-    module.$get = ['$q', '$rootScope', function($q, $rootScope) {
+    module.$get = ['$q', '$rootScope', '$window', function($q, $rootScope, $window) {
+
+        if(!('indexedDB' in $window)) {
+            $window.indexedDB = $window.mozIndexedDB || $window.webkitIndexedDB || $window.msIndexedDB;
+        }
+
+        var IDBKeyRange = $window.IDBKeyRange || $window.mozIDBKeyRange || $window.webkitIDBKeyRange || $window.msIDBKeyRange;
+
         /**
          * @ngdoc object
          * @name defaultQueryOptions
