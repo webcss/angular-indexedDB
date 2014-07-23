@@ -6,7 +6,9 @@
 
 'use strict';
 /** unify browser specific implementations */
-var indexedDB = window.indexedDB||window.mozIndexedDB||window.webkitIndexedDB||window.msIndexedDB;
+if(!('indexedDB' in window)) {
+    var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
+}
 var IDBKeyRange=window.IDBKeyRange||window.mozIDBKeyRange||window.webkitIDBKeyRange||window.msIDBKeyRange;
 
 angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
