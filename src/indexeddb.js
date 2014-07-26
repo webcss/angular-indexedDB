@@ -460,7 +460,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
          * @description utility object to easily create IDBKeyRange for cursor queries
          */
         var QueryBuilder = function() {
-            this.result = defaultQueryOptions;
+            this.result = angular.extend({}, defaultQueryOptions);
         };
         QueryBuilder.prototype = {
             /**
