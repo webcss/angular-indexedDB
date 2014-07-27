@@ -95,6 +95,10 @@ angular.module('myModuleName')
 QueryBuilder aka IDBKeyRange maybe needs some revision.
 This is all the info you get for now, for more read the code, it's ndoc-annotated! 
 
-Important note: that this software is in alpha state and therefore it's used at your own risk,
+Important note: this software is in alpha state and therefore it's used at your own risk,
 don't make me liable for any damages or loss of data!
+
+Status Update: I'm sorry to say that I've abandoned angularJS for now and therefore have no plans for features or updates. This may change in the future. Apart from that I will apply updates submitted as pull requests when I find the time and see use.
+
+Anyone willing to join as active developer is welcome to drop me a note and help keep this project alive.
 
