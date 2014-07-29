@@ -49,7 +49,25 @@ angular.module('myModuleName', ['xc.indexedDB'])
 ```
 The connection method takes the databasename as parameter,
 the upgradeCallback has 3 parameters:
-function callback(event, database, transaction). For upgrading your db structure, see 
+function callback(event, database, transaction). AngularJS-indexedDB supports incremental
+upgrades.  Simply define what to do for each version incrementally:
+```javascript
+angular.module('myModuleName', ['xc.indexedDB'])
+  .config(function ($indexedDBProvider) {
+    $indexedDBProvider
+      .connection('myIndexedDB')
+      .upgradeDatabase(1, function(event, db, tx){
+        var objStore = db.createObjectStore('people', {keyPath: 'ssn'});
+        objStore.createIndex('name_idx', 'name', {unique: false});
+        objStore.createIndex('age_idx', 'age', {unique: false});
+      });
+      .upgradeDatabase(2, function(event, db, tx){
+        db.createObjectStore('peoplePhones', {keyPath: 'person_ssn'});
+      });
+  });
+```
+When upgrade is required only the migrations which have not been run yet will be run.
+For upgrading your db structure, see 
 https://developer.mozilla.org/en-US/docs/IndexedDB/Using_IndexedDB.
 
 You can also define your own error handlers, overwriting the default ones, which log to console.

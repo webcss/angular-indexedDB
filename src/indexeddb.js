@@ -27,6 +27,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
     module.db = null;
     module.dbPromise = null;
     module.outStandingTransactionCount = 0;
+    module.upgradesByVersion = {}
 
     /** predefined callback functions, can be customized in angular.config */
     module.onTransactionComplete = function(e) {
@@ -76,8 +77,8 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
      * @returns {object} this
      */
     module.upgradeDatabase = function(newVersion, callback) {
-        module.dbVersion = newVersion;
-        module.upgradeCallback = callback;
+        module.upgradesByVersion[newVersion] = callback;
+        module.dbVersion = Math.max.apply(null, Object.keys(module.upgradesByVersion) )
         return this;
     };
 
@@ -90,6 +91,16 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                 module.outStandingTransactionCount--;
             }
         };
+    };
+    
+    var applyNeededUpgrades = function(oldVersion, event, db, tx) {
+      for(var version in module.upgradesByVersion) {
+        if( !module.upgradesByVersion.hasOwnProperty(version) || version <= oldVersion ) {
+          continue;
+        }
+        console.log("Running upgrade : " + version + " from " + oldVersion);
+        module.upgradesByVersion[version](event , db, tx)
+      }
     };
 
     module.$get = ['$q', '$rootScope', function($q, $rootScope) {
@@ -138,7 +149,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                     var db = e.target.result, tx = e.target.transaction;
                     console.log('upgrading database "' + db.name + '" from version ' + e.oldVersion+
                         ' to version ' + e.newVersion + '...');
-                    module.upgradeCallback && module.upgradeCallback(e, db, tx);
+                    applyNeededUpgrades(e.oldVersion, e, db, tx);
                 };
             }
 
