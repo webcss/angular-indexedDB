@@ -647,17 +647,19 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                 var storeNames, stores = [], tx, store;
                 return dbPromise().then(function(db){
                     storeNames = Array.prototype.slice.apply(db.objectStoreNames);
-                    tx = db.transaction(storeNames, READONLY);
-                    storeNames.forEach(function(storeName){
-                        store = tx.objectStore(storeName);
-                        stores.push({
-                           name: storeName,
-                           keyPath: store.keyPath,
-                           autoIncrement: store.autoIncrement,
-                           count: store.count(),
-                           indices: Array.prototype.slice.apply(store.indexNames)
+                    if(storeNames.length > 0) {
+                        tx = db.transaction(storeNames, READONLY);
+                        storeNames.forEach(function (storeName) {
+                            store = tx.objectStore(storeName);
+                            stores.push({
+                                name: storeName,
+                                keyPath: store.keyPath,
+                                autoIncrement: store.autoIncrement,
+                                count: store.count(),
+                                indices: Array.prototype.slice.apply(store.indexNames)
+                            });
                         });
-                    });
+                    }
                     return {
                         name: db.name,
                         version: db.version,
