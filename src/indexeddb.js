@@ -1,6 +1,7 @@
 /**
  * @license $indexedDBProvider
- * (c) 2013 Clemens Capitain (webcss)
+ * (c) 2014 Bram Whillock (bramski)
+ * Forked from original work by clements Capitan (webcss)
  * License: MIT
  */
 
@@ -27,7 +28,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
     module.db = null;
     module.dbPromise = null;
     module.outStandingTransactionCount = 0;
-    module.upgradesByVersion = {}
+    module.upgradesByVersion = {};
 
     /** predefined callback functions, can be customized in angular.config */
     module.onTransactionComplete = function(e) {
@@ -156,6 +157,10 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
             return module.dbPromise;
         };
 
+        var transactionPromise = function() {
+
+        }
+
         /**
          * @ngdoc object
          * @name ObjectStore
@@ -185,6 +190,9 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
             internalObjectStore: function(storeName, mode) {
                 var me = this;
                 return dbPromise().then(function(db){
+                    if( !db.objectStoreNames.contains(storeName))
+                      return $q.reject("Object store " + storeName + " does not exist.");
+
                     me.transaction = db.transaction([storeName], mode || READONLY);
                     me.transaction.oncomplete = wrapInTransactionCount( module.onTransactionComplete );
                     me.transaction.onabort = module.onTransactionAbort;
