@@ -21,9 +21,10 @@ describe "$indexedDB", ->
         for store in info.objectStores
           @subject.objectStore(store.name).clear()
       ).then ->
+        done()
         console.log("cleared")
 
-  describe '#objectStore', ->
+  ddescribe '#objectStore', ->
     beforeEach ->
       providerConfig.connection("testDB")
       .upgradeDatabase 1, (event, db, txn) ->
@@ -56,7 +57,7 @@ describe "$indexedDB", ->
           store.getAll().then (items) ->
             expect( items[0].id ).toEqual(1)
             expect( items[0].data ).toEqual("something")
-            expect( items.length).toEqual(1)
+            expect( items.length ).toEqual(1)
             done()
 
 

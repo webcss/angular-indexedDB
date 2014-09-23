@@ -157,9 +157,42 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
             return module.dbPromise;
         };
 
-        var transactionPromise = function() {
+        var TransactionInfo = function(db, storeName, mode) {
+          var defer = $q.defer();
+          var me = this;
+          this.transaction = db.transaction([storeName], mode || READONLY);
+          this.defer = defer;
+          this.promise = defer.promise;
+          this.objectStore = this.transaction.objectStore(storeName);
+          this.resultValue = undefined;
+          this.transaction.oncomplete = function() {
+            console.log("Finished transaction.");
+            $rootScope.$apply(function() {
+              defer.resolve.apply(defer, me.resultValue);
+            });
+          };
+          this.transaction.onabort = function() {
+            $rootScope.$apply(function() {
+              defer.reject("Transaction Aborted");
+            });
+          };
+          this.transaction.onerror = function() {
+            $rootScope.$apply(function() {
+              defer.reject(arguments);
+            });
+          };
+        };
 
-        }
+        TransactionInfo.prototype.resolve = function() {
+          this.resultValue = arguments;
+        };
+
+        TransactionInfo.prototype.reject = function() {
+          var me = this;
+          $rootScope.$apply(function() {
+            me.defer.reject(arguments);
+          });
+        };
 
         /**
          * @ngdoc object
@@ -172,12 +205,11 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
          */
         var ObjectStore = function(storeName) {
             this.storeName = storeName;
-            this.transaction = undefined;
         };
         ObjectStore.prototype = {
             /**
              * @ngdoc method
-             * @name ObjectStore.internalObjectStore
+             * @name ObjectStore.startTransaction
              * @function
              *
              * @description used internally to retrieve an objectstore
@@ -187,31 +219,15 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @params {string} mode transaction mode to use for operation
              * @returns {object} IDBObjectStore the objectstore in question
              */
-            internalObjectStore: function(storeName, mode) {
+            startTransaction: function(mode) {
                 var me = this;
                 return dbPromise().then(function(db){
-                    if( !db.objectStoreNames.contains(storeName))
-                      return $q.reject("Object store " + storeName + " does not exist.");
+                    if( !db.objectStoreNames.contains(me.storeName))
+                      return $q.reject("Object store " + me.storeName + " does not exist.");
 
-                    me.transaction = db.transaction([storeName], mode || READONLY);
-                    me.transaction.oncomplete = wrapInTransactionCount( module.onTransactionComplete );
-                    me.transaction.onabort = module.onTransactionAbort;
-                    me.onerror = module.onTransactionError;
-
-                    return me.transaction.objectStore(storeName);
+                    console.log("Started transaction ....");
+                    return new TransactionInfo(db, me.storeName, mode);
                 });
-            },
-            /**
-             * @ngdoc method
-             * @name ObjectStore.abort
-             * @function
-             *
-             * @description abort the current transaction
-             */
-            "abort": function() {
-                if (this.transaction) {
-                    this.transaction.abort();
-                }
             },
             /**
              * @ngdoc method
@@ -227,8 +243,9 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              */
             "insert": function(data){
                 var d = $q.defer();
-                return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
+                return this.startTransaction(READWRITE).then(function(transaction){
                     var req;
+                    var store = transaction.objectStore;
                     if (angular.isArray(data)) {
                         data.forEach(function(item, i){
                             req = store.add(item);
@@ -244,21 +261,17 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                             };
                             req.onsuccess = function(e) {
                                 if(i == data.length - 1) {
-                                    $rootScope.$apply(function(){
-                                        d.resolve(e.target.result);
-                                    });
+                                    transaction.resolve(e.target.result);
                                 }
                             };
                         });
                     } else {
                         req = store.add(data);
                         req.onsuccess = req.onerror = function(e) {
-                            $rootScope.$apply(function(){
-                                d.resolve(e.target.result);
-                            });
+                            transaction.resolve(e.target.result);
                         };
                     }
-                    return d.promise;
+                    return transaction.promise;
                 });
             },
             /**
@@ -273,15 +286,14 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @returns {array} keys ... wrapped in a promise
              */
             "getAllKeys": function() {
-                var results = [], d = $q.defer();
-                return this.internalObjectStore(this.storeName, READONLY).then(function(store){
+                var results = [];
+                return this.startTransaction(READONLY).then( function(transaction){
                     var req;
+                    var store = transaction.objectStore;
                     if (store.getAllKeys) {
                         req = store.getAllKeys();
-                        req.onsuccess = req.onerror = function(e) {
-                            $rootScope.$apply(function(){
-                                d.resolve(e.target.result);
-                            });
+                        req.onsuccess = function(e) {
+                            transaction.resolve(e.target.result);
                         };
                     } else {
                         req = store.openCursor();
@@ -291,16 +303,15 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                                 results.push(cursor.key);
                                 cursor.continue();
                             } else {
-                                $rootScope.$apply(function(){
-                                    d.resolve(results);
-                                });
+                                transaction.resolve(results);
                             }
                         };
-                        req.onerror = function(e) {
-                            d.reject(e.target.result);
-                        };
+
                     }
-                    return d.promise;
+                    req.onerror = function(e) {
+                        transaction.reject(e.target.result);
+                    };
+                    return transaction.promise;
                 });
             },
             /**
@@ -318,8 +329,10 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              */
             "upsert": function(data){
                 var d = $q.defer();
-                return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
+                var me = this;
+                return this.startTransaction(READWRITE).then(function(transactionInfo){
                     var req;
+                    var store = transactionInfo.objectStore;
                     if (angular.isArray(data)) {
                         data.forEach(function(item, i){
                             req = store.put(item);
@@ -349,7 +362,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                             });
                         };
                     }
-                    return d.promise;
+                    return transactionInfo.afterTransactionCompletes(d.promise);
                 });
             },
             /**
@@ -365,14 +378,15 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              */
             "delete": function(key) {
                 var d = $q.defer();
-                return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
+                return this.startTransaction(READWRITE).then(function(transactionInfo){
+                    var store = transactionInfo.objectStore;
                     var req = store.delete(key);
                     req.onsuccess = req.onerror = function(e) {
                         $rootScope.$apply(function(){
                             d.resolve(e.target.result);
                         });
                     };
-                    return d.promise;
+                    return transactionInfo.afterTransactionCompletes(d.promise);
                 });
             },
             /**
@@ -387,14 +401,13 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              */
             "clear": function() {
                 var d = $q.defer();
-                return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
+                return this.startTransaction(READWRITE).then(function(transaction){
+                    var store = transaction.objectStore;
                     var req = store.clear();
                     req.onsuccess = req.onerror = function(e) {
-                        $rootScope.$apply(function(){
-                            d.resolve(e.target.result);
-                        });
+                        transaction.resolve(e.target.result);
                     };
-                    return d.promise;
+                    return transaction.promise;
                 });
             },
             /**
@@ -408,8 +421,9 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @returns {object} $q.promise a promise on successfull execution
              */
             "count": function() {
-                return this.internalObjectStore(this.storeName, READONLY).then(function(store){
-                    return store.count();
+                return this.startTransaction(READONLY).then(function(transactionInfo){
+                    var store = transactionInfo.objectStore;
+                    return transactionInfo.afterTransactionCompletes($q.resolve(store.count()));
                 });
             },
             /**
@@ -427,8 +441,9 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
             "find": function(keyOrIndex, keyIfIndex){
                 var d = $q.defer();
                 var promise = d.promise;
-                return this.internalObjectStore(this.storeName, READONLY).then(function(store){
+                return this.startTransaction(READONLY).then(function(transactionInfo){
                     var req;
+                    var store = transactionInfo.objectStore;
 
                     if(keyIfIndex) {
                         req = store.index(keyOrIndex).get(keyIfIndex);
@@ -440,7 +455,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                             d.resolve(e.target.result);
                         });
                     };
-                    return promise;
+                    return transactionInfo.afterTransactionCompletes(promise);
                 });
             },
             /**
@@ -456,14 +471,14 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              */
             "getAll": function() {
                 var results = [], d = $q.defer();
-                return this.internalObjectStore(this.storeName, READONLY).then(function(store){
+                return this.startTransaction(READONLY).then(function(transaction){
+                    var store = transaction.objectStore;
+
                     var req;
                     if (store.getAll) {
                         req = store.getAll();
                         req.onsuccess = req.onerror = function(e) {
-                            $rootScope.$apply(function(){
-                                d.resolve(e.target.result);
-                            });
+                          transaction.resolve(e.target.result);
                         };
                     } else {
                         req = store.openCursor();
@@ -473,16 +488,14 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                                 results.push(cursor.value);
                                 cursor.continue();
                             } else {
-                                $rootScope.$apply(function(){
-                                    d.resolve(results);
-                                });
+                              transaction.resolve(results);
                             }
                         };
                         req.onerror = function(e) {
                             d.reject(e.target.result);
                         };
                     }
-                    return d.promise;
+                    return transaction.promise;
                 });
             },
             /**
@@ -501,7 +514,8 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              */
             "each": function(options){
                 var d = $q.defer();
-                return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
+                return this.startTransaction(READWRITE).then(function(transactionInfo){
+                   var store = transactionInfo.objectStore;
                    var req;
                    options = options || defaultQueryOptions;
                    if(options.useIndex) {
@@ -514,7 +528,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                             d.resolve(e.target.result);
                         });
                     };
-                    return d.promise;
+                    return transactionInfo.afterTransactionCompletes(d.promise);
                 });
             }
         };
@@ -766,26 +780,6 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                 module.dbVersion = version || 1;
                 module.upgradeCallback = upgradeCallback || function() {};
                 return this;
-            },
-            /**
-             * @ngdoc method
-             * @name $indexedDB.flush
-             * @function
-             *
-             * @description Flushes promises and waits for all transactions to complete.
-             */
-            "flush": function(doneCallback) {
-                var timeoutId = -1;
-                dbPromise().finally( function() {
-                    timeoutId = setInterval(function () {
-                        $rootScope.$apply(function() {
-                            if (module.outStandingTransactionCount <= 0) {
-                                doneCallback();
-                                window.clearInterval(timeoutId);
-                            }
-                        });
-                    }, 40);
-                });
             },
             /**
              * @ngdoc method
