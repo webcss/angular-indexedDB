@@ -176,18 +176,12 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
         $rootScope.$apply =>
           @q.notify(args...)
 
-      notifyWith: (req) ->
-        req.onnotify = (e) =>
-          console.log("notify", e)
-          @notify(e.target.result)
-
       dbErrorFunction: ->
         (error) =>
           $rootScope.$apply =>
             @q.reject(errorMessageFor(error))
 
       resolveWith: (req) ->
-        @notifyWith(req)
         @rejectWith(req)
         req.onsuccess = (e) =>
           @resolve(e.target.result)
@@ -218,10 +212,10 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
         for item in data
           req = mapFunc(item)
           results = []
-          defer.notifyWith(req)
           defer.rejectWith(req)
           req.onsuccess = (e) ->
             results.push(e.target.result)
+            defer.notify(e.target.result)
             defer.resolve(results) if results.length >= data.length
         if data.length == 0
           $timeout ->
