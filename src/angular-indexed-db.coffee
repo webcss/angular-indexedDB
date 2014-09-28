@@ -324,6 +324,21 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
             cursor.value
         defer.promise
 
+      eachWhere: (query) ->
+        defer = @defer()
+        indexName = query.indexName
+        keyRange = query.keyRange
+        direction = query.direction
+        req = if indexName
+          @store.index(indexName).openCursor(keyRange, direction)
+        else
+          @store.openCursor(keyRange, direction)
+        @_mapCursor(defer, ((cursor) -> cursor.value), req)
+        defer.promise
+
+      findWhere: (query) ->
+        @eachWhere(query)
+
       ###*
         @ngdoc function
         @name $indexedDBProvider.store.each
@@ -355,16 +370,11 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
         @returns {Q} A promise which notifies with each individual item and resolves with all of them.
         ###
       eachBy: (indexName = undefined, options = {}) ->
-        keyRange = keyRangeForOptions options
-        direction = options.direction || defaultQueryOptions.direction
-        defer = @defer()
-        req = if indexName
-          @store.index(indexName).openCursor(keyRange, direction)
-        else
-          @store.openCursor(keyRange, direction)
-        @_mapCursor(defer, ((cursor) ->
-          cursor.value), req)
-        defer.promise
+        q = new Query()
+        q.indexName = indexName
+        q.keyRange = keyRangeForOptions options
+        q.direction = options.direction || defaultQueryOptions.direction
+        @eachWhere(q)
 
       ###*
         @ngdoc function
@@ -417,6 +427,50 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
         defer.resolveWith(@store.index(index).get(key))
         defer.promise
 
+      query: ->
+        new Query()
+
+    class Query
+      constructor : ->
+        @indexName = undefined
+        @keyRange = undefined
+        @direction = cursorDirection.next
+
+      $lt: (value) ->
+        @keyRange = IDBKeyRange.upperBound(value, true)
+        this
+
+      $gt: (value) ->
+        @keyRange = IDBKeyRange.lowerBound(value, true)
+        this
+
+      $lte: (value) ->
+        @keyRange = IDBKeyRange.upperBound(value)
+        this
+
+      $gte: (value) ->
+        @keyRange = IDBKeyRange.lowerBound(value)
+        this
+
+      $eq: (value) ->
+        @keyRange = IDBKeyRange.only(value)
+        this
+
+      $between: (low, hi, exLow = false, exHi = false) ->
+        @keyRange = IDBKeyRange.bound(low, hi, exLow, exHi)
+        this
+
+      $desc: (unique) ->
+        @direction = if unique then cursorDirection.prevunique else cursorDirection.prev
+        this
+
+      $asc: (unique) ->
+        @direction = if unique then cursorDirection.nextunique else cursorDirection.next
+        this
+
+      $index: (indexName) ->
+        @indexName = indexName
+        this
     ###*
     @ngdoc method
     @name $indexedDB.objectStore

@@ -65,6 +65,58 @@ describe "$indexedDB", ->
         .catch ->
           expect(true).toBeFalsy()
 
+    describe "#query", ->
+      promiseBefore ->
+        @subject.openStore "ComplexTestObjects", (store) ->
+          store.insert([
+              {id: 1, data: "foo", name: "bbb"},
+              {id: 2, data: "bar", name: "aaa"},
+              {id: 3, data: "woof", name: "zzz"}
+            ]
+          )
+
+      itPromises "iterates by the index name with lt and lte", ->
+        @subject.openStore "ComplexTestObjects", (store) ->
+          store.findWhere(store.query().$index("name")).then (results) ->
+            expect( results[0].id ).toEqual(2)
+          store.findWhere(store.query().$index("name").$lt("bbb")).then (results) ->
+            expect( results.length).toEqual(1)
+            expect( results[0].id).toEqual(2)
+          store.findWhere(store.query().$index("name").$lte("bbb")).then (results) ->
+            expect( results.length).toEqual(2)
+            expect( results[0].id).toEqual(2)
+            expect( results[1].id).toEqual(1)
+
+      itPromises "iterates by the index name with gt and gte", ->
+        @subject.openStore "ComplexTestObjects", (store) ->
+          store.findWhere(store.query().$index("name")).then (results) ->
+            expect( results[0].id ).toEqual(2)
+          store.findWhere(store.query().$index("name").$gt("bbb")).then (results) ->
+            expect( results.length).toEqual(1)
+            expect( results[0].id).toEqual(3)
+          store.findWhere(store.query().$index("name").$gte("bbb")).then (results) ->
+            expect( results.length).toEqual(2)
+            expect( results[1].id).toEqual(3)
+            expect( results[0].id).toEqual(1)
+
+      itPromises "finds one object with $eq", ->
+        @subject.openStore "ComplexTestObjects", (store) ->
+          store.findWhere(store.query().$index("name").$eq("bbb")).then (results) ->
+            expect( results[0].id ).toEqual(1)
+            expect( results.length).toEqual(1)
+
+      itPromises "finds two objects with $between", ->
+        @subject.openStore "ComplexTestObjects", (store) ->
+          store.findWhere(store.query().$index("name").$between("aaa","bbb")).then (results) ->
+            expect( results[0].id ).toEqual(2)
+            expect( results.length).toEqual(2)
+
+      itPromises "orders differently with $desc", ->
+        @subject.openStore "ComplexTestObjects", (store) ->
+          store.findWhere(store.query().$index("name").$desc()).then (results) ->
+            expect( results[0].id ).toEqual(3)
+            expect( results.length).toEqual(3)
+
     describe "#find", ->
       promiseBefore ->
         @subject.openStore "TestObjects", (store) ->
