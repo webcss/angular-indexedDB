@@ -1,16 +1,24 @@
 {
   "name": "angular-indexedDB",
-  "version": "0.0.0",
-  "homepage": "https://github.com/webcss/angular-indexedDB",
+  "version": "1.1.0",
+  "homepage": "https://github.com/bramski/angular-indexedDB",
   "authors": [
-    "webcss <webcss@capitain-reinigung.de>"
+    "bramski <bramski@gmail.com>"
   ],
   "description": "An angularjs serviceprovider to utilize indexedDB with angular",
-  "main": "src/indexeddb.js",
+  "main": "angular-indexed-db.js",
   "keywords": [
     "angularjs",
     "indexeddb",
     "angular"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies" : {
+    "angular" : "~1.2.23"
+  },
+  "devDependencies" : {
+    "angular-mocks" : "~1.2.23",
+    "angular-scenario" : "~1.2.23",
+    "karma-jasmine" : "~0.2.2"
+  }
 }

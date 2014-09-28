@@ -1,7 +1,14 @@
-angular-indexedDB
+angular-indexed-db
 =================
 
-An angularjs serviceprovider to utilize indexedDB with angular
+An AngularJS service provider to utilize indexedDB with angular
+
+##Release Notes
+
+### 1.1.0
+  Lots of changes.  The way of interacting with stores has changed so that you can operate
+  more transaction-aware.  Many things did not work in the prior version correctly.
+  The service is now well tested and the base build is written in coffeescript.
 
 ## Installation
 
@@ -11,13 +18,13 @@ For installation the use of Bower is recommended.
 Call the following command on your command line:
 
 ```sh
-bower install --save angularjs-indexedDB
+bower install --save angular-indexed-db
 ```
 
 And add the following line to your html file, for example `index.html`:
 
 ```html
-<script src="components/angular-indexedDB/src/indexeddb.js"></script>
+<script src="components/angular-indexed-db/angular-indexed-db.js"></script>
 ```
 
 
@@ -27,7 +34,7 @@ And add the following line to your html file, for example `index.html`:
 - Add the following line to your html file:
 
 ```html
-<script src="indexeddb.js"></script>
+<script src="angular-indexed-db.js"></script>
 ```
 
 ## Usage
@@ -36,11 +43,11 @@ Normally, and as a recommendation, you have only one indexedDB per app.
 Thus in your `app.js` where you define your module, you do:
 
 ```javascript
-angular.module('myModuleName', ['xc.indexedDB'])
+angular.module('myModuleName', ['indexedDB'])
   .config(function ($indexedDBProvider) {
     $indexedDBProvider
       .connection('myIndexedDB')
-      .upgradeDatabase(myVersion, function(event, db, tx){
+      .upgradeDatabase(1, function(event, db, tx){
         var objStore = db.createObjectStore('people', {keyPath: 'ssn'});
         objStore.createIndex('name_idx', 'name', {unique: false});
         objStore.createIndex('age_idx', 'age', {unique: false});
@@ -80,39 +87,39 @@ angular.module('myModuleName')
   .controller('myControllerName', function($scope, $indexedDB) {
     
     $scope.objects = [];
-    
-    var OBJECT_STORE_NAME = 'people';  
         
-    /**
-     * @type {ObjectStore}
-     */
-    var myObjectStore = $indexedDB.objectStore(OBJECT_STORE_NAME);
+    $indexedDB.openStore('people', (store) ->
     
-    myObjectStore.insert({"ssn": "444-444-222-111","name": "John Doe", "age": 57}).then(function(e){...});
+      store.insert({"ssn": "444-444-222-111","name": "John Doe", "age": 57}).then(function(e){...});
     
-    myObjectStore.getAll().then(function(results) {  
-      // Update scope
-      $scope.objects = results;
-    });
+      store.getAll().then(function(people) {  
+        // Update scope
+        $scope.objects = people;
+      });
 
-  /**
-   * execute a query:
-   * presuming we've an index on 'age' field called 'age_idx'
-   * find all persons older than 40 years
-   */
-   
-   var myQuery = $indexedDB.queryBuilder().$index('age_idx').$gt(40).$asc.compile();
-   myObjectStore.each(myQuery).then(function(cursor){
-     cursor.key;
-     cursor.value;
-     ...
-   });
   });
 ```
 
-QueryBuilder aka IDBKeyRange maybe needs some revision.
-This is all the info you get for now, for more read the code, it's ndoc-annotated! 
+## openStore
 
-Important note: that this software is in alpha state and therefore it's used at your own risk,
-don't make me liable for any damages or loss of data!
+When you open a store a transaction is created for all of your actions against that store
+you receive a promise for each operation within your transaction and also for the transaction
+as a whole as the result of "openStore".  The transaction resolves successfully after state
+has been fully persisted.
+
+## store operations
+
+The following operations are allowed on a store..
+
+* getAllKeys - Returns all the primary keys on the store
+* clear - Deletes all items from the store
+* delete - Deletes a single item from the store
+* upsert - Upserts an item or list of items in the store
+* insert - Inserts an item or list of items in the store
+* getAll - Returns all items in the store
+* each - iterates over all items in the store
+* eachBy - iterates over all items in the store using a named index.
+* count - returns a count of all the items
+* find - returns a single item from the store
+* findBy - searches a particular index for an item
 
