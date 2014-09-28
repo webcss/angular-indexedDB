@@ -119,7 +119,10 @@ The following operations are allowed on a store..
 * getAll - Returns all items in the store
 * each - iterates over all items in the store
 * eachBy - iterates over all items in the store using a named index.
+* eachWhere - uses the query() to execute a find against the store
+* findWhere - an alias for findWhere
 * count - returns a count of all the items
 * find - returns a single item from the store
 * findBy - searches a particular index for an item
+* query - builds a new query obect for use against eachWhere
 
