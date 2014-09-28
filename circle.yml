@@ -3,7 +3,7 @@ dependencies:
     - "bower_components"
     - "node_modules"
   override:
-    - npm install
+    - ./npm_install.sh
     - bower install
 test:
   override:
