@@ -70,8 +70,12 @@ module.exports = function (grunt) {
     }
   });
 
+  grunt.registerTask('test', [
+    'karma:unit'
+  ]);
+
   grunt.registerTask('build', [
-    'karma:unit',
+    'test',
     'coffee:dist',
     'uglify'
   ]);

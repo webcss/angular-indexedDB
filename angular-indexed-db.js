@@ -44,18 +44,16 @@
       keyRange: null,
       direction: cursorDirection.next
     };
-    applyNeededUpgrades = (function(_this) {
-      return function(oldVersion, event, db, tx) {
-        var version;
-        for (version in upgradesByVersion) {
-          if (!upgradesByVersion.hasOwnProperty(version) || version <= oldVersion) {
-            continue;
-          }
-          console.debug("$indexedDB: Running upgrade : " + version + " from " + oldVersion);
-          upgradesByVersion[version](event, db, tx);
+    applyNeededUpgrades = function(oldVersion, event, db, tx) {
+      var version;
+      for (version in upgradesByVersion) {
+        if (!upgradesByVersion.hasOwnProperty(version) || version <= oldVersion) {
+          continue;
         }
-      };
-    })(this);
+        console.debug("$indexedDB: Running upgrade : " + version + " from " + oldVersion);
+        upgradesByVersion[version](event, db, tx);
+      }
+    };
     errorMessageFor = function(e) {
       if (e.target.readyState === readyState.pending) {
         return "Error: Operation pending";
@@ -164,7 +162,6 @@
             this.transaction = db.transaction(storeNames, mode);
             this.defer = $q.defer();
             this.promise = this.defer.promise;
-            this.resultValues = [];
             this.setupCallbacks();
           }
 

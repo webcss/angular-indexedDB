@@ -39,7 +39,7 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
     keyRange: null
     direction: cursorDirection.next
 
-  applyNeededUpgrades = (oldVersion, event, db, tx) =>
+  applyNeededUpgrades = (oldVersion, event, db, tx) ->
     for version of upgradesByVersion
       if not upgradesByVersion.hasOwnProperty(version) or version <= oldVersion
         continue
@@ -136,7 +136,6 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
         @transaction = db.transaction(storeNames, mode)
         @defer = $q.defer()
         @promise = @defer.promise
-        @resultValues = []
         @setupCallbacks()
 
       setupCallbacks: ->

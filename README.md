@@ -3,6 +3,13 @@ angular-indexed-db
 
 An AngularJS service provider to utilize indexedDB with angular
 
+##Release Notes
+
+### 1.1.0
+  Lots of changes.  The way of interacting with stores has changed so that you can operate
+  more transaction-aware.  Many things did not work in the prior version correctly.
+  The service is now well tested and the base build is written in coffeescript.
+
 ## Installation
 
 For installation the use of Bower is recommended.
