@@ -6,7 +6,7 @@
     "bramski <bramski@gmail.com>"
   ],
   "description": "An angularjs serviceprovider to utilize indexedDB with angular",
-  "main": "src/indexeddb.js",
+  "main": "angular-indexed-db.js",
   "keywords": [
     "angularjs",
     "indexeddb",

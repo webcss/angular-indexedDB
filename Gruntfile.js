@@ -1,7 +1,7 @@
 'use strict';
 
 
-module.exports = function(grunt) {
+module.exports = function (grunt) {
 
   // Load grunt tasks automatically
   require('load-grunt-tasks')(grunt);
@@ -9,6 +9,36 @@ module.exports = function(grunt) {
   // Project configuration.
   grunt.initConfig({
     pkg: grunt.file.readJSON('package.json'),
+
+    // Compiles CoffeeScript to JavaScript
+    coffee: {
+      options: {
+        sourceMap: true,
+        sourceRoot: ''
+      },
+      dist: {
+        files: [
+          {
+            expand: true,
+            cwd: 'src',
+            src: 'angular-indexed-db.coffee',
+            dest: '.',
+            ext: '.js'
+          }
+        ]
+      },
+      test: {
+        files: [
+          {
+            expand: true,
+            cwd: 'test/spec',
+            src: '{,*/}*.coffee',
+            dest: '.tmp/spec',
+            ext: '.js'
+          }
+        ]
+      }
+    },
 
     karma: {
       options: {
@@ -21,7 +51,29 @@ module.exports = function(grunt) {
         singleRun: false,
         reporters: 'dots'
       }
+    },
+
+    uglify: {
+      options: {
+        sourceMap: true,
+        sourceMapName: 'angular-indexed-db.min.js.map',
+        sourceMapIncludeSources: true,
+        mangle: false
+      },
+      dist: {
+        files: {
+          'angular-indexed-db.min.js': [
+            'angular-indexed-db.js'
+          ]
+        }
+      }
     }
   });
+
+  grunt.registerTask('build', [
+    'karma:unit',
+    'coffee:dist',
+    'uglify'
+  ]);
 
 };
