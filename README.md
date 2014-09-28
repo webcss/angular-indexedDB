@@ -1,7 +1,7 @@
 angular-indexed-db
 =================
 
-https://circleci.com/gh/bramski/angular-indexedDB.png?circle-token=:circle-token
+![build status](https://circleci.com/gh/bramski/angular-indexedDB.png?circle-token=:circle-token)
 
 An AngularJS service provider to utilize indexedDB with angular
 
