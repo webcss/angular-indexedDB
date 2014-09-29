@@ -86,7 +86,7 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
     dbVersion = Math.max.apply(null, Object.keys(upgradesByVersion))
     this
 
-  @$get = ['$q', '$rootScope', '$timeout', ($q, $rootScope, $timeout) ->
+  @$get = ['$q', '$rootScope', ($q, $rootScope) ->
     rejectWithError = (deferred) ->
       (error) ->
         $rootScope.$apply ->
@@ -218,7 +218,7 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
             defer.notify(e.target.result)
             defer.resolve(results) if results.length >= data.length
         if data.length == 0
-          $timeout ->
+          setTimeout ->
             defer.resolve([])
           , 0
         defer.promise
@@ -483,8 +483,9 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
     ###
     openStore: (storeName, callBack, mode = dbMode.readwrite) ->
       openTransaction([storeName], mode).then (transaction) ->
-        callBack(new ObjectStore(storeName, transaction))
-        transaction.promise
+        results = callBack(new ObjectStore(storeName, transaction))
+        transaction.promise.then ->
+          results
 
     ###*
       @ngdoc method

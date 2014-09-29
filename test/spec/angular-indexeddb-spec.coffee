@@ -3,6 +3,7 @@
 describe "$indexedDB", ->
   providerConfig = {}
   $q = {}
+  $timeout = {}
 
   beforeEach ->
     angular.module('indexedDB').config ($indexedDBProvider) ->
@@ -19,9 +20,10 @@ describe "$indexedDB", ->
     beforeEach (done) ->
       beforeFunc.apply(this, []).finally(done)
 
-  beforeEach inject ($indexedDB, _$q_) ->
+  beforeEach inject ($indexedDB, _$q_, _$timeout_) ->
     @subject = $indexedDB
     $q = _$q_
+    $timeout = _$timeout_
 
   afterEach (done) ->
     @subject.deleteDatabase().finally(done)
@@ -43,6 +45,20 @@ describe "$indexedDB", ->
     itPromises "throws an error for non-existent stores", ->
       @subject.openStore("NoSuchStore", (->)).catch (problem) ->
         expect(problem).toEqual("Object stores NoSuchStore do not exist.")
+
+    describe "multiple transactions", ->
+      promiseBefore ->
+        @subject.openStore "TestObjects", (store) ->
+          store.insert([
+            {id: 1, data: "foo"},
+            {id: 2, data: "bar"}
+          ])
+
+      itPromises "can open a transaction within a transaction", ->
+        @subject.openStore "TestObjects", (store) =>
+          p = store.insert
+          @subject.openStore "TestObjects", (store2) ->
+            expect( store2 ).toBeTruthy()
 
     describe "#delete", ->
       promiseBefore ->
@@ -125,12 +141,19 @@ describe "$indexedDB", ->
             {id: 2, data: "bar"}
           ])
 
-      it "finds an existing item", ->
+      itPromises "finds an existing item", ->
         @subject.openStore "TestObjects", (store) ->
           store.find(1).then (item) ->
             expect(item.data).toEqual("foo")
 
-      it "does not find a non-existent item", ->
+      itPromises "returns the result of the callback to the receiver", ->
+        @subject.openStore "TestObjects", (store) ->
+          store.find(1)
+        .then (item) ->
+          expect(item.data).toEqual("foo")
+          true
+
+      itPromises "does not find a non-existent item", ->
         @subject.openStore "TestObjects", (store) ->
           store.find(404).then (item) ->
             expect(false).toBeTruthy()
