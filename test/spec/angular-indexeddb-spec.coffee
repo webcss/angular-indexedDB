@@ -3,7 +3,6 @@
 describe "$indexedDB", ->
   providerConfig = {}
   $q = {}
-  $timeout = {}
 
   beforeEach ->
     angular.module('indexedDB').config ($indexedDBProvider) ->
@@ -20,10 +19,9 @@ describe "$indexedDB", ->
     beforeEach (done) ->
       beforeFunc.apply(this, []).finally(done)
 
-  beforeEach inject ($indexedDB, _$q_, _$timeout_) ->
+  beforeEach inject ($indexedDB, _$q_) ->
     @subject = $indexedDB
     $q = _$q_
-    $timeout = _$timeout_
 
   afterEach (done) ->
     @subject.deleteDatabase().finally(done)

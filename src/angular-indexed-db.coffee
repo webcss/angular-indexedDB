@@ -218,9 +218,7 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
             defer.notify(e.target.result)
             defer.resolve(results) if results.length >= data.length
         if data.length == 0
-          setTimeout ->
-            defer.resolve([])
-          , 0
+          return $q.when([])
         defer.promise
 
       ###*
