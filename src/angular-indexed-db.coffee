@@ -34,6 +34,7 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
   db = null
   upgradesByVersion = {}
   dbPromise = null
+  allTransactions = []
   defaultQueryOptions =
     useIndex: undefined
     keyRange: null
@@ -131,6 +132,12 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
     keyRangeForOptions = (options) ->
       IDBKeyRange.bound(options.beginKey, options.endKey) if options.beginKey and options.endKey
 
+    addTransaction = (transaction) ->
+      allTransactions.push(transaction.promise)
+      transaction.promise.finally ->
+        index = allTransactions.indexOf(transaction.promise)
+        allTransactions.splice(index,1) if index > -1
+
     class Transaction
       constructor: (storeNames, mode = dbMode.readonly) ->
         @transaction = db.transaction(storeNames, mode)
@@ -148,6 +155,7 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
         @transaction.onerror = (error) =>
           $rootScope.$apply =>
             @defer.reject("Transaction Error", error)
+        addTransaction(this)
 
       objectStore: (storeName) ->
         @transaction.objectStore(storeName)
@@ -485,6 +493,24 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
         transaction.promise.then ->
           results
 
+    openStores: (storeNames, callback, mode = dbMode.readwrite) ->
+      openTransaction(storeNames, mode).then (transaction) ->
+        objectStores = for storeName in storeNames
+          new ObjectStore(storeName, transaction)
+        results = callback.apply(null, objectStores)
+        transaction.promise.then ->
+          results
+
+    openAllStores: (callback, mode = dbMode.readwrite) ->
+      openDatabase().then =>
+        storeNames = Array.prototype.slice.apply(db.objectStoreNames)
+        transaction = new Transaction(storeNames, mode)
+        objectStores = for storeName in storeNames
+          new ObjectStore(storeName, transaction)
+        results = callback.apply(null, objectStores)
+        transaction.promise.then ->
+          results
+
     ###*
       @ngdoc method
       @name $indexedDB.closeDatabase
@@ -511,6 +537,12 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
         console.debug "$indexedDB: #{dbName} database deleted."
 
     queryDirection: apiDirection
+
+    flush: ->
+      if allTransactions.length > 0
+        $q.all(allTransactions)
+      else
+        $q.when([])
 
     ###*
       @ngdoc method

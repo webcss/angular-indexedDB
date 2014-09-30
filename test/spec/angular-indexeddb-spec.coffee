@@ -23,17 +23,45 @@ describe "$indexedDB", ->
     @subject = $indexedDB
     $q = _$q_
 
+  beforeEach ->
+    providerConfig.connection("testDB")
+    .upgradeDatabase 1, (event, db, txn) ->
+      db.createObjectStore "TestObjects", keyPath: 'id'
+    .upgradeDatabase 2, (event, db, txn) ->
+      store = db.createObjectStore "ComplexTestObjects", keyPath: 'id'
+      store.createIndex "name", "name", unique: false
+
   afterEach (done) ->
     @subject.deleteDatabase().finally(done)
 
+  describe "#openStores", ->
+
+    itPromises "returns the object stores", ->
+      @subject.openStores ["TestObjects","ComplexTestObjecs"] , (store1, store2) ->
+        store1.insert({id: 1, data : "foo"})
+        store2.insert({id: 2, name: "barf"})
+        store1.getAllKeys().then (keys) ->
+          expect(keys.length).toEqual(1)
+
+  describe "#openAllStores", ->
+      itPromises "returns all the object stores", ->
+        @subject.openAllStores (stores...) ->
+          expect(stores.length).toEqual(2)
+          stores[0].insert({id: 1, data : "foo"})
+          stores[1].insert({id: 2, name: "barf"})
+          stores[0].getAllKeys().then (keys) ->
+            expect(keys.length).toEqual(1)
+
+  describe '#flush', ->
+    itPromises "it flushes any waiting transactions", ->
+      @subject.openStore "TestObjects", (store) =>
+        for i in [0 .. 10000]
+          store.insert([
+            {id: i, data: "foo", extra: "a" * i}
+          ])
+        @subject.flush()
+
   describe '#openStore', ->
-    beforeEach ->
-      providerConfig.connection("testDB")
-      .upgradeDatabase 1, (event, db, txn) ->
-        db.createObjectStore "TestObjects", keyPath: 'id'
-      .upgradeDatabase 2, (event, db, txn) ->
-        store = db.createObjectStore "ComplexTestObjects", keyPath: 'id'
-        store.createIndex "name", "name", unique: false
 
     itPromises "returns the object store", ->
       @subject.openStore "TestObjects", (store) ->
