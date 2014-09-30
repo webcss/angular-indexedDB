@@ -16,7 +16,7 @@
   IDBKeyRange = window.IDBKeyRange || window.mozIDBKeyRange || window.webkitIDBKeyRange || window.msIDBKeyRange;
 
   angular.module('indexedDB', []).provider('$indexedDB', function() {
-    var apiDirection, applyNeededUpgrades, cursorDirection, db, dbMode, dbName, dbPromise, dbVersion, defaultQueryOptions, errorMessageFor, readyState, upgradesByVersion;
+    var allTransactions, apiDirection, applyNeededUpgrades, cursorDirection, db, dbMode, dbName, dbPromise, dbVersion, defaultQueryOptions, errorMessageFor, readyState, upgradesByVersion;
     dbMode = {
       readonly: "readonly",
       readwrite: "readwrite"
@@ -39,6 +39,7 @@
     db = null;
     upgradesByVersion = {};
     dbPromise = null;
+    allTransactions = [];
     defaultQueryOptions = {
       useIndex: void 0,
       keyRange: null,
@@ -96,8 +97,8 @@
       return this;
     };
     this.$get = [
-      '$q', '$rootScope', '$timeout', function($q, $rootScope, $timeout) {
-        var DbQ, ObjectStore, Transaction, closeDatabase, createDatabaseConnection, keyRangeForOptions, openDatabase, openTransaction, rejectWithError, validateStoreNames;
+      '$q', '$rootScope', function($q, $rootScope) {
+        var DbQ, ObjectStore, Query, Transaction, addTransaction, closeDatabase, createDatabaseConnection, keyRangeForOptions, openDatabase, openTransaction, rejectWithError, validateStoreNames;
         rejectWithError = function(deferred) {
           return function(error) {
             return $rootScope.$apply(function() {
@@ -154,6 +155,16 @@
             return IDBKeyRange.bound(options.beginKey, options.endKey);
           }
         };
+        addTransaction = function(transaction) {
+          allTransactions.push(transaction.promise);
+          return transaction.promise["finally"](function() {
+            var index;
+            index = allTransactions.indexOf(transaction.promise);
+            if (index > -1) {
+              return allTransactions.splice(index, 1);
+            }
+          });
+        };
         Transaction = (function() {
           function Transaction(storeNames, mode) {
             if (mode == null) {
@@ -180,13 +191,14 @@
                 });
               };
             })(this);
-            return this.transaction.onerror = (function(_this) {
+            this.transaction.onerror = (function(_this) {
               return function(error) {
                 return $rootScope.$apply(function() {
                   return _this.defer.reject("Transaction Error", error);
                 });
               };
             })(this);
+            return addTransaction(this);
           };
 
           Transaction.prototype.objectStore = function(storeName) {
@@ -247,15 +259,6 @@
             })(this));
           };
 
-          DbQ.prototype.notifyWith = function(req) {
-            return req.onnotify = (function(_this) {
-              return function(e) {
-                console.log("notify", e);
-                return _this.notify(e.target.result);
-              };
-            })(this);
-          };
-
           DbQ.prototype.dbErrorFunction = function() {
             return (function(_this) {
               return function(error) {
@@ -267,7 +270,6 @@
           };
 
           DbQ.prototype.resolveWith = function(req) {
-            this.notifyWith(req);
             this.rejectWith(req);
             return req.onsuccess = (function(_this) {
               return function(e) {
@@ -319,19 +321,17 @@
               item = data[_i];
               req = mapFunc(item);
               results = [];
-              defer.notifyWith(req);
               defer.rejectWith(req);
               req.onsuccess = function(e) {
                 results.push(e.target.result);
+                defer.notify(e.target.result);
                 if (results.length >= data.length) {
                   return defer.resolve(results);
                 }
               };
             }
             if (data.length === 0) {
-              $timeout(function() {
-                return defer.resolve([]);
-              }, 0);
+              return $q.when([]);
             }
             return defer.promise;
           };
@@ -469,6 +469,23 @@
             return defer.promise;
           };
 
+          ObjectStore.prototype.eachWhere = function(query) {
+            var defer, direction, indexName, keyRange, req;
+            defer = this.defer();
+            indexName = query.indexName;
+            keyRange = query.keyRange;
+            direction = query.direction;
+            req = indexName ? this.store.index(indexName).openCursor(keyRange, direction) : this.store.openCursor(keyRange, direction);
+            this._mapCursor(defer, (function(cursor) {
+              return cursor.value;
+            }), req);
+            return defer.promise;
+          };
+
+          ObjectStore.prototype.findWhere = function(query) {
+            return this.eachWhere(query);
+          };
+
 
           /**
             @ngdoc function
@@ -508,21 +525,18 @@
            */
 
           ObjectStore.prototype.eachBy = function(indexName, options) {
-            var defer, direction, keyRange, req;
+            var q;
             if (indexName == null) {
               indexName = void 0;
             }
             if (options == null) {
               options = {};
             }
-            keyRange = keyRangeForOptions(options);
-            direction = options.direction || defaultQueryOptions.direction;
-            defer = this.defer();
-            req = indexName ? this.store.index(indexName).openCursor(keyRange, direction) : this.store.openCursor(keyRange, direction);
-            this._mapCursor(defer, (function(cursor) {
-              return cursor.value;
-            }), req);
-            return defer.promise;
+            q = new Query();
+            q.indexName = indexName;
+            q.keyRange = keyRangeForOptions(options);
+            q.direction = options.direction || defaultQueryOptions.direction;
+            return this.eachWhere(q);
           };
 
 
@@ -592,7 +606,72 @@
             return defer.promise;
           };
 
+          ObjectStore.prototype.query = function() {
+            return new Query();
+          };
+
           return ObjectStore;
+
+        })();
+        Query = (function() {
+          function Query() {
+            this.indexName = void 0;
+            this.keyRange = void 0;
+            this.direction = cursorDirection.next;
+          }
+
+          Query.prototype.$lt = function(value) {
+            this.keyRange = IDBKeyRange.upperBound(value, true);
+            return this;
+          };
+
+          Query.prototype.$gt = function(value) {
+            this.keyRange = IDBKeyRange.lowerBound(value, true);
+            return this;
+          };
+
+          Query.prototype.$lte = function(value) {
+            this.keyRange = IDBKeyRange.upperBound(value);
+            return this;
+          };
+
+          Query.prototype.$gte = function(value) {
+            this.keyRange = IDBKeyRange.lowerBound(value);
+            return this;
+          };
+
+          Query.prototype.$eq = function(value) {
+            this.keyRange = IDBKeyRange.only(value);
+            return this;
+          };
+
+          Query.prototype.$between = function(low, hi, exLow, exHi) {
+            if (exLow == null) {
+              exLow = false;
+            }
+            if (exHi == null) {
+              exHi = false;
+            }
+            this.keyRange = IDBKeyRange.bound(low, hi, exLow, exHi);
+            return this;
+          };
+
+          Query.prototype.$desc = function(unique) {
+            this.direction = unique ? cursorDirection.prevunique : cursorDirection.prev;
+            return this;
+          };
+
+          Query.prototype.$asc = function(unique) {
+            this.direction = unique ? cursorDirection.nextunique : cursorDirection.next;
+            return this;
+          };
+
+          Query.prototype.$index = function(indexName) {
+            this.indexName = indexName;
+            return this;
+          };
+
+          return Query;
 
         })();
         return {
@@ -612,9 +691,58 @@
               mode = dbMode.readwrite;
             }
             return openTransaction([storeName], mode).then(function(transaction) {
-              callBack(new ObjectStore(storeName, transaction));
-              return transaction.promise;
+              var results;
+              results = callBack(new ObjectStore(storeName, transaction));
+              return transaction.promise.then(function() {
+                return results;
+              });
             });
+          },
+          openStores: function(storeNames, callback, mode) {
+            if (mode == null) {
+              mode = dbMode.readwrite;
+            }
+            return openTransaction(storeNames, mode).then(function(transaction) {
+              var objectStores, results, storeName;
+              objectStores = (function() {
+                var _i, _len, _results;
+                _results = [];
+                for (_i = 0, _len = storeNames.length; _i < _len; _i++) {
+                  storeName = storeNames[_i];
+                  _results.push(new ObjectStore(storeName, transaction));
+                }
+                return _results;
+              })();
+              results = callback.apply(null, objectStores);
+              return transaction.promise.then(function() {
+                return results;
+              });
+            });
+          },
+          openAllStores: function(callback, mode) {
+            if (mode == null) {
+              mode = dbMode.readwrite;
+            }
+            return openDatabase().then((function(_this) {
+              return function() {
+                var objectStores, results, storeName, storeNames, transaction;
+                storeNames = Array.prototype.slice.apply(db.objectStoreNames);
+                transaction = new Transaction(storeNames, mode);
+                objectStores = (function() {
+                  var _i, _len, _results;
+                  _results = [];
+                  for (_i = 0, _len = storeNames.length; _i < _len; _i++) {
+                    storeName = storeNames[_i];
+                    _results.push(new ObjectStore(storeName, transaction));
+                  }
+                  return _results;
+                })();
+                results = callback.apply(null, objectStores);
+                return transaction.promise.then(function() {
+                  return results;
+                });
+              };
+            })(this));
           },
 
           /**
@@ -646,6 +774,13 @@
             });
           },
           queryDirection: apiDirection,
+          flush: function() {
+            if (allTransactions.length > 0) {
+              return $q.all(allTransactions);
+            } else {
+              return $q.when([]);
+            }
+          },
 
           /**
             @ngdoc method
