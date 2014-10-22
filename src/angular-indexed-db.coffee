@@ -138,7 +138,7 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
         index = allTransactions.indexOf(transaction.promise)
         allTransactions.splice(index,1) if index > -1
 
-    class Transaction
+    class transaction
       constructor: (storeNames, mode = dbMode.readonly) ->
         @transaction = db.transaction(storeNames, mode)
         @defer = $q.defer()
