@@ -61,7 +61,7 @@ the upgradeCallback has 3 parameters:
 function callback(event, database, transaction). AngularJS-indexedDB supports incremental
 upgrades.  Simply define what to do for each version incrementally:
 ```javascript
-angular.module('myModuleName', ['xc.indexedDB'])
+angular.module('myModuleName', ['indexedDB'])
   .config(function ($indexedDBProvider) {
     $indexedDBProvider
       .connection('myIndexedDB')
