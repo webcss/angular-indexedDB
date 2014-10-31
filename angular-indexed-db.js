@@ -8,15 +8,12 @@
 
 (function() {
   'use strict';
-  var IDBKeyRange, indexedDB,
-    __slice = [].slice;
-
-  indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
-
-  IDBKeyRange = window.IDBKeyRange || window.mozIDBKeyRange || window.webkitIDBKeyRange || window.msIDBKeyRange;
+  var __slice = [].slice;
 
   angular.module('indexedDB', []).provider('$indexedDB', function() {
-    var allTransactions, apiDirection, applyNeededUpgrades, cursorDirection, db, dbMode, dbName, dbPromise, dbVersion, defaultQueryOptions, errorMessageFor, readyState, upgradesByVersion;
+    var IDBKeyRange, allTransactions, apiDirection, applyNeededUpgrades, cursorDirection, db, dbMode, dbName, dbPromise, dbVersion, defaultQueryOptions, errorMessageFor, indexedDB, readyState, upgradesByVersion;
+    indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
+    IDBKeyRange = window.IDBKeyRange || window.mozIDBKeyRange || window.webkitIDBKeyRange || window.msIDBKeyRange;
     dbMode = {
       readonly: "readonly",
       readwrite: "readwrite"
@@ -137,7 +134,13 @@
           });
         };
         validateStoreNames = function(storeNames) {
-          return db.objectStoreNames.contains(storeNames);
+          var found, storeName, _i, _len;
+          found = true;
+          for (_i = 0, _len = storeNames.length; _i < _len; _i++) {
+            storeName = storeNames[_i];
+            found = found & db.objectStoreNames.contains(storeName);
+          }
+          return found;
         };
         openTransaction = function(storeNames, mode) {
           if (mode == null) {
