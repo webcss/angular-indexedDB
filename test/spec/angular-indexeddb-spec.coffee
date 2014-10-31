@@ -13,7 +13,12 @@ describe "$indexedDB", ->
 
   itPromises = (message, testFunc) ->
     it message, (done) ->
-      testFunc.apply(this, []).finally(done)
+      successCb = sinon.spy()
+      testFunc.apply(this, []).then(successCb).catch (error) ->
+        console.error "Unhandled failure from test: #{error}"
+        expect(false).toBeTruthy()
+      .finally ->
+        done()
 
   promiseBefore = (beforeFunc) ->
     beforeEach (done) ->
@@ -37,11 +42,20 @@ describe "$indexedDB", ->
   describe "#openStores", ->
 
     itPromises "returns the object stores", ->
-      @subject.openStores ["TestObjects","ComplexTestObjecs"] , (store1, store2) ->
+      @subject.openStores ["TestObjects","ComplexTestObjects"] , (store1, store2) ->
         store1.insert({id: 1, data : "foo"})
         store2.insert({id: 2, name: "barf"})
         store1.getAllKeys().then (keys) ->
           expect(keys.length).toEqual(1)
+
+    itPromises "to cause a failure when the store does not exist.", ->
+      success = sinon.spy()
+      fail = sinon.spy()
+      @subject.openStores ["TestObjects","NonExistentObjects"] , success
+      .then(success,fail)
+      .finally ->
+        expect(fail).toHaveBeenCalledWith("Object stores TestObjects,NonExistentObjects do not exist.")
+        expect(success).not.toHaveBeenCalled()
 
   describe "#openAllStores", ->
       itPromises "returns all the object stores", ->
@@ -69,8 +83,14 @@ describe "$indexedDB", ->
           expect(keys.length).toEqual(0)
 
     itPromises "throws an error for non-existent stores", ->
-      @subject.openStore("NoSuchStore", (->)).catch (problem) ->
+      notCalled = sinon.spy()
+      called = sinon.spy()
+      @subject.openStore("NoSuchStore",notCalled).catch (problem) ->
         expect(problem).toEqual("Object stores NoSuchStore do not exist.")
+        called()
+      .finally ->
+        expect(notCalled).not.toHaveBeenCalled()
+        expect(called).toHaveBeenCalled()
 
     describe "multiple transactions", ->
       promiseBefore ->
@@ -273,13 +293,22 @@ describe "$indexedDB", ->
             expect(object.id).toEqual(1)
 
       itPromises "cannot add an item of the same key twice", ->
+        successCb = sinon.spy()
+        failedCb = sinon.spy()
         @subject.openStore "TestObjects", (store) ->
           store.insert({id: 1, data: "something"})
           store.insert({id: 1, data: "somethingelse"}).catch (errorMessage) ->
             expect(errorMessage).toEqual("Key already exists in the object store.")
+            failedCb()
             return $q.reject("expected")
-          .then ->
-            expect(false).toBeTruthy()
+          .then(successCb)
+        .catch (error) ->
+          #We expect the overall transaction to also fail
+          expect(error).toEqual("Transaction Error")
+          return
+        .finally ->
+          expect(successCb).not.toHaveBeenCalled()
+          expect(failedCb).toHaveBeenCalled()
 
       itPromises "can add multiple items", ->
         @subject.openStore "TestObjects", (store) ->
