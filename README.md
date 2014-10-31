@@ -6,6 +6,9 @@ angular-indexed-db
 An AngularJS service provider to utilize indexedDB with angular
 
 ##Release Notes
+### 1.1.1
+  Bugfix release.  Addresses a problem with opening multiple stores and a problem with
+  using this library in non-native indexedDB environments.
 
 ### 1.1.0
   Lots of changes.  The way of interacting with stores has changed so that you can operate
