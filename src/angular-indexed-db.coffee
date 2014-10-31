@@ -7,10 +7,10 @@
 
 'use strict'
 
-indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB
-IDBKeyRange = window.IDBKeyRange || window.mozIDBKeyRange || window.webkitIDBKeyRange || window.msIDBKeyRange
-
 angular.module('indexedDB', []).provider '$indexedDB', ->
+  indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB
+  IDBKeyRange = window.IDBKeyRange || window.mozIDBKeyRange || window.webkitIDBKeyRange || window.msIDBKeyRange
+
   dbMode =
     readonly: "readonly"
     readwrite: "readwrite"
@@ -121,13 +121,17 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
         dbPromise = null
 
     validateStoreNames = (storeNames) ->
-      db.objectStoreNames.contains(storeNames)
+      found = true
+      for storeName in storeNames
+        found = found & db.objectStoreNames.contains(storeName)
+      found
 
     openTransaction = (storeNames, mode = dbMode.readonly) ->
       openDatabase().then ->
         unless validateStoreNames(storeNames)
-          return $q.reject("Object stores " + storeNames + " do not exist.");
+          return $q.reject("Object stores " + storeNames + " do not exist.")
         new Transaction(storeNames, mode)
+
 
     keyRangeForOptions = (options) ->
       IDBKeyRange.bound(options.beginKey, options.endKey) if options.beginKey and options.endKey

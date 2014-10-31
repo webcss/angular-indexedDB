@@ -7,6 +7,8 @@ module.exports = function (config) {
     files: [
       'bower_components/angular/angular.js',
       'bower_components/angular-mocks/angular-mocks.js',
+      'bower_components/sinonjs/sinon.js',
+      'bower_components/jasmine-sinon/lib/jasmine-sinon.js',
       'src/*.coffee',
       'test/mock/**/*.js',
       'test/spec/**/*.coffee',
