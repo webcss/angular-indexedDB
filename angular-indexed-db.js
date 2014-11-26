@@ -11,7 +11,7 @@
   var __slice = [].slice;
 
   angular.module('indexedDB', []).provider('$indexedDB', function() {
-    var IDBKeyRange, allTransactions, apiDirection, applyNeededUpgrades, cursorDirection, db, dbMode, dbName, dbPromise, dbVersion, defaultQueryOptions, errorMessageFor, indexedDB, readyState, upgradesByVersion;
+    var IDBKeyRange, allTransactions, apiDirection, appendResultsToPromise, applyNeededUpgrades, cursorDirection, db, dbMode, dbName, dbPromise, dbVersion, defaultQueryOptions, errorMessageFor, indexedDB, readyState, upgradesByVersion;
     indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
     IDBKeyRange = window.IDBKeyRange || window.mozIDBKeyRange || window.webkitIDBKeyRange || window.msIDBKeyRange;
     dbMode = {
@@ -57,6 +57,15 @@
         return "Error: Operation pending";
       } else {
         return e.target.webkitErrorMessage || e.target.error.message || e.target.errorCode;
+      }
+    };
+    appendResultsToPromise = function(promise, results) {
+      if (results !== void 0) {
+        return promise.then(function() {
+          return results;
+        });
+      } else {
+        return promise;
       }
     };
 
@@ -696,9 +705,7 @@
             return openTransaction([storeName], mode).then(function(transaction) {
               var results;
               results = callBack(new ObjectStore(storeName, transaction));
-              return transaction.promise.then(function() {
-                return results;
-              });
+              return appendResultsToPromise(transaction.promise, results);
             });
           },
           openStores: function(storeNames, callback, mode) {
@@ -717,9 +724,7 @@
                 return _results;
               })();
               results = callback.apply(null, objectStores);
-              return transaction.promise.then(function() {
-                return results;
-              });
+              return appendResultsToPromise(transaction.promise, results);
             });
           },
           openAllStores: function(callback, mode) {
@@ -741,9 +746,7 @@
                   return _results;
                 })();
                 results = callback.apply(null, objectStores);
-                return transaction.promise.then(function() {
-                  return results;
-                });
+                return appendResultsToPromise(transaction.promise, results);
               };
             })(this));
           },

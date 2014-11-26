@@ -54,6 +54,13 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
     else
       (e.target.webkitErrorMessage || e.target.error.message || e.target.errorCode)
 
+  appendResultsToPromise = (promise, results) ->
+    if results isnt undefined
+      promise.then ->
+        results
+    else
+      promise
+
   ###*
   @ngdoc function
   @name $indexedDBProvider.connection
@@ -494,16 +501,14 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
     openStore: (storeName, callBack, mode = dbMode.readwrite) ->
       openTransaction([storeName], mode).then (transaction) ->
         results = callBack(new ObjectStore(storeName, transaction))
-        transaction.promise.then ->
-          results
+        appendResultsToPromise(transaction.promise, results)
 
     openStores: (storeNames, callback, mode = dbMode.readwrite) ->
       openTransaction(storeNames, mode).then (transaction) ->
         objectStores = for storeName in storeNames
           new ObjectStore(storeName, transaction)
         results = callback.apply(null, objectStores)
-        transaction.promise.then ->
-          results
+        appendResultsToPromise(transaction.promise, results)
 
     openAllStores: (callback, mode = dbMode.readwrite) ->
       openDatabase().then =>
@@ -512,8 +517,7 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
         objectStores = for storeName in storeNames
           new ObjectStore(storeName, transaction)
         results = callback.apply(null, objectStores)
-        transaction.promise.then ->
-          results
+        appendResultsToPromise(transaction.promise, results)
 
     ###*
       @ngdoc method

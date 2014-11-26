@@ -261,6 +261,16 @@ describe "$indexedDB", ->
           store.find(1).then (object) ->
             expect(object.id).toEqual(1)
 
+      itPromises "when openStore returns nothing it doesn't fail", ->
+        @subject.openStore "TestObjects", (store) ->
+          store.upsert({id: 1, data: "something"}).then (result) ->
+            expect(result).toBeTruthy()
+          return
+        @subject.openStore "TestObjects", (store) ->
+          store.getAll().then (objects) ->
+            console.log("got all objects?", objects)
+            expect(objects.length).toEqual(1)
+
       itPromises "can add an item of the same key twice", ->
         @subject.openStore "TestObjects", (store) ->
           store.upsert({id: 1, data: "something"})
