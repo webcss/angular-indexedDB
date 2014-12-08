@@ -5,7 +5,6 @@
  */
 
 'use strict';
-
 angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
     var module          = this,
         /** IDBTransaction mode constants */
@@ -198,6 +197,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              * @params {object or array} data the data to insert
              * @returns {object} $q.promise a promise on successfull execution
              */
+             
             "insert": function(data){
                 var d = $q.defer();
                 return this.internalObjectStore(this.storeName, READWRITE).then(function(store){
@@ -209,7 +209,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                                $rootScope.$apply(function(){
                                     d.notify(e.target.result);
                                 }); 
-                            }
+                            }; 
                             req.onerror = function(e) {
                                 $rootScope.$apply(function(){
                                     d.reject(e.target.result);
@@ -234,6 +234,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                     return d.promise;
                 });
             },
+            
             /**
              * @ngdoc method
              * @name ObjectStore.upsert
@@ -258,7 +259,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
                                $rootScope.$apply(function(){
                                     d.notify(e.target.result);
                                 }); 
-                            }
+                            }; 
                             req.onerror = function(e) {
                                 $rootScope.$apply(function(){
                                     d.reject(e.target.result);
@@ -338,6 +339,7 @@ angular.module('xc.indexedDB', []).provider('$indexedDB', function() {
              *
              * @returns {object} $q.promise a promise on successfull execution
              */
+             
             "count": function() {
                 return this.internalObjectStore(this.storeName, READONLY).then(function(store){
                     return store.count();
