@@ -3,6 +3,8 @@ angular-indexedDB
 
 An angularjs serviceprovider to utilize indexedDB with angular
 
+####Important: This repository isn't maintained by me anymore. Look [over here](https://github.com/bramski/angular-indexedDB) for current versions, as [Bram Whillock](https://github.com/bramski) took over as main contributor.
+
 ## Installation
 
 For installation the use of Bower is recommended.
