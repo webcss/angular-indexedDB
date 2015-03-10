@@ -42,13 +42,13 @@
       keyRange: null,
       direction: cursorDirection.next
     };
-    applyNeededUpgrades = function(oldVersion, event, db, tx) {
+    applyNeededUpgrades = function(oldVersion, event, db, tx, $log) {
       var version;
       for (version in upgradesByVersion) {
         if (!upgradesByVersion.hasOwnProperty(version) || version <= oldVersion) {
           continue;
         }
-        console.debug("$indexedDB: Running upgrade : " + version + " from " + oldVersion);
+        $log.log("$indexedDB: Running upgrade : " + version + " from " + oldVersion);
         upgradesByVersion[version](event, db, tx);
       }
     };
@@ -103,7 +103,7 @@
       return this;
     };
     this.$get = [
-      '$q', '$rootScope', function($q, $rootScope) {
+      '$q', '$rootScope', '$log', function($q, $rootScope, $log) {
         var DbQ, ObjectStore, Query, Transaction, addTransaction, closeDatabase, createDatabaseConnection, keyRangeForOptions, openDatabase, openTransaction, rejectWithError, validateStoreNames;
         rejectWithError = function(deferred) {
           return function(error) {
@@ -127,8 +127,8 @@
             var tx;
             db = event.target.result;
             tx = event.target.transaction;
-            console.debug("$indexedDB: Upgrading database '" + db.name + "' from version " + event.oldVersion + " to version " + event.newVersion + " ...");
-            applyNeededUpgrades(event.oldVersion, event, db, tx);
+            $log.log("$indexedDB: Upgrading database '" + db.name + "' from version " + event.oldVersion + " to version " + event.newVersion + " ...");
+            applyNeededUpgrades(event.oldVersion, event, db, tx, $log);
           };
           return deferred.promise;
         };
@@ -776,7 +776,7 @@
               defer.resolveWith(indexedDB.deleteDatabase(dbName));
               return defer.promise;
             })["finally"](function() {
-              return console.debug("$indexedDB: " + dbName + " database deleted.");
+              return $log.log("$indexedDB: " + dbName + " database deleted.");
             });
           },
           queryDirection: apiDirection,

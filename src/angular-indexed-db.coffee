@@ -40,11 +40,11 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
     keyRange: null
     direction: cursorDirection.next
 
-  applyNeededUpgrades = (oldVersion, event, db, tx) ->
+  applyNeededUpgrades = (oldVersion, event, db, tx, $log) ->
     for version of upgradesByVersion
       if not upgradesByVersion.hasOwnProperty(version) or version <= oldVersion
         continue
-      console.debug "$indexedDB: Running upgrade : " + version + " from " + oldVersion
+      $log.log "$indexedDB: Running upgrade : " + version + " from " + oldVersion
       upgradesByVersion[version] event, db, tx
     return
 
@@ -94,7 +94,7 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
     dbVersion = Math.max.apply(null, Object.keys(upgradesByVersion))
     this
 
-  @$get = ['$q', '$rootScope', ($q, $rootScope) ->
+  @$get = ['$q', '$rootScope', '$log', ($q, $rootScope, $log) ->
     rejectWithError = (deferred) ->
       (error) ->
         $rootScope.$apply ->
@@ -113,8 +113,8 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
       dbReq.onupgradeneeded = (event) ->
         db = event.target.result
         tx = event.target.transaction
-        console.debug "$indexedDB: Upgrading database '#{db.name}' from version #{event.oldVersion} to version #{event.newVersion} ..."
-        applyNeededUpgrades event.oldVersion, event, db, tx
+        $log.log "$indexedDB: Upgrading database '#{db.name}' from version #{event.oldVersion} to version #{event.newVersion} ..."
+        applyNeededUpgrades event.oldVersion, event, db, tx, $log
         return
       deferred.promise
 
@@ -542,7 +542,7 @@ angular.module('indexedDB', []).provider '$indexedDB', ->
         defer.resolveWith(indexedDB.deleteDatabase(dbName))
         defer.promise
       .finally ->
-        console.debug "$indexedDB: #{dbName} database deleted."
+        $log.log "$indexedDB: #{dbName} database deleted."
 
     queryDirection: apiDirection
 
