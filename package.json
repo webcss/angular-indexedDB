@@ -43,7 +43,7 @@
   },
   "scripts": {
     "test": "grunt test",
-    "preinstall": "(command -v grunt >/dev/null && command -v bower >/dev/null) || { echo 'bower and grunt-cli needs to be globally installed. e.g.: sudo npm install bower grunt-cli -g'; exit 1; }",
+    "preinstall": "bower >/dev/null || sudo npm install bower grunt-cli -g",
     "postinstall": "bower install"
   }
 }
