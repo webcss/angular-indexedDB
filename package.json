@@ -36,7 +36,9 @@
     "grunt-exec": "~0.4.5",
     "karma-jasmine": "~0.2.2",
     "karma-coffee-preprocessor": "~0.2.1",
-    "karma-chrome-launcher": "~0.1.4"
+    "karma-chrome-launcher": "~0.1.4",
+    "grunt-cli": "~0.1.13",
+    "bower": "~1.4.1"
   },
   "engines": {
     "node": ">=0.10.0"

@@ -4,7 +4,7 @@ dependencies:
     - "node_modules"
   override:
     - ./npm_install.sh
-    - bower install
+    - ./node_modules/.bin/bower install
 test:
   override:
-    - grunt test
+    - ./node_modules/.bin/grunt test
