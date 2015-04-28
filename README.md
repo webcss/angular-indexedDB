@@ -125,7 +125,7 @@ The following operations are allowed on a store..
 * each - iterates over all items in the store
 * eachBy - iterates over all items in the store using a named index.
 * eachWhere - uses the query() to execute a find against the store
-* findWhere - an alias for findWhere
+* findWhere - an alias for eachWhere
 * count - returns a count of all the items
 * find - returns a single item from the store
 * findBy - searches a particular index for an item
